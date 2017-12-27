@@ -23,6 +23,7 @@ trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
 for x in dev test train; do
   iecho "Creating for $x partition"
+  mkdir -p "${tmpdir}/$x"
   stepsext/make_pybank.sh \
     --pybank-json "${pybank_json}" \
     --nj $nj \

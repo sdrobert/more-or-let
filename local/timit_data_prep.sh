@@ -149,16 +149,16 @@ for x in train dev test; do
 
   # sdrobert: use our duration file to make sure none of our phone boundaries
   # pass the end of the file
-  wav-to-duration scp:${x}_wav.scp ark,t:${x}_dur.ark || exit 1
-  echo -n > ${x}_phn.segments
-  while read line; do
-    uttid="${line% *}"
-    dur="${line#* }"
-    awk "BEGIN {dur=${dur};}"'$2 == "'"${uttid}"'" {
-      if ($4 > dur) { $4 = dur; }
-      print $1,$2,$3,$4;
-    }' $tmpdir/${x}_phn.segments | sort -k 1,1 >> ${x}_phn.segments
-  done < ${x}_dur.ark
+#  wav-to-duration scp:${x}_wav.scp ark,t:${x}_dur.ark || exit 1
+#  echo -n > ${x}_phn.segments
+#  while read line; do
+#    uttid="${line% *}"
+#    dur="${line#* }"
+#    awk "BEGIN {dur=${dur};}"'$2 == "'"${uttid}"'" {
+#      if ($4 > dur) { $4 = dur; }
+#      print $1,$2,$3,$4;
+#    }' $tmpdir/${x}_phn.segments | sort -k 1,1 >> ${x}_phn.segments
+#  done < ${x}_dur.ark
 done
 
 # sdrobert: finish creating the phone to id map

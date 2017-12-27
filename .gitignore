@@ -106,3 +106,5 @@ data
 exp/
 exp
 
+# sdrobert: slurm stuff
+core.*

@@ -16,6 +16,7 @@ trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
 for x in test dev train; do
   iecho "Creating for $x partition"
+  mkdir -p "${tmpdir}/$x"
   steps/make_fbank.sh \
     --fbank-config "$fbank_config" \
     --nj $nj \

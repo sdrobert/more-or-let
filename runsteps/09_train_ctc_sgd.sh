@@ -18,17 +18,17 @@ iecho "SGD training"
 source runsteps/08a_train_ctc.sh \
   --training-stage sgd \
   kaldi_123 data/123 exp/csv/kaldi_123.csv
-source runsteps/08a_train_ctc.sh \
-  --training-stage sgd \
-  fbank_123 data/123 exp/csv/fbank_123.csv
-source runsteps/08a_train_ctc.sh \
-  --training-stage sgd \
-  sifbank_123 data/123 exp/csv/sifbank_123.csv
-source runsteps/08a_train_ctc.sh \
-  --training-stage sgd \
-  gbank_123 data/123 exp/csv/gbank_123.csv
-source runsteps/08a_train_ctc.sh \
-  --training-stage sgd \
-  sigbank_123 data/123 exp/csv/sigbank_123.csv
-
+# source runsteps/08a_train_ctc.sh \
+#   --training-stage sgd \
+#   fbank_123 data/123 exp/csv/fbank_123.csv
+# source runsteps/08a_train_ctc.sh \
+#   --training-stage sgd \
+#   sifbank_123 data/123 exp/csv/sifbank_123.csv
+# source runsteps/08a_train_ctc.sh \
+#   --training-stage sgd \
+#   gbank_123 data/123 exp/csv/gbank_123.csv
+# source runsteps/08a_train_ctc.sh \
+#   --training-stage sgd \
+#   sigbank_123 data/123 exp/csv/sigbank_123.csv
+# 
 iecho "Done SGD training"

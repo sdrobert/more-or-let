@@ -25,7 +25,7 @@ iecho "Feature creation"
 mkdir -p data/41
 rsync -r data/full/{dev,train,test} data/41
 
-# source runsteps/07a_kaldi_41_creation.sh
+source runsteps/07a_kaldi_41_creation.sh
 
 source runsteps/07c_pybank_creation.sh \
   --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
