@@ -37,6 +37,9 @@ __all__ = [
     'train_cnn_ctc',
     'decode_cnn_ctc',
     'find_best_model_from_log'
+    'alt_compute_cmvn_stats',
+    'alt_apply_cmvn',
+    'alt_add_deltas',
 ]
 
 
@@ -618,3 +621,149 @@ def find_best_model_from_log(args=None):
     else:
         print(best_path)
         return 0
+
+
+def _alt_compute_cmvn_stats_parse_args(args, logger):
+    parser = KaldiParser(
+        description=alt_compute_cmvn_stats.__doc__,
+        add_verbose=True,
+        logger=logger,
+    )
+    parser.add_argument(
+        'feats_in', type='kaldi_rspecifier',
+        help='Features to compute over'
+    )
+    parser.add_argument(
+        'cmvn_stats_out', type='kaldi_wxfilename',
+        help='Where to store global CMVN stats'
+    )
+    return parser.parse_args(args)
+
+
+@kaldi_vlog_level_cmd_decorator
+@kaldi_logger_decorator
+def alt_compute_cmvn_stats(args=None):
+    '''Python-based code for CMVN statistics computation
+
+    Used for debugging
+    '''
+    logger = logging.getLogger(sys.argv[0])
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    register_logger_for_kaldi(sys.argv[0])
+    options = _alt_compute_cmvn_stats_parse_args(args, logger)
+    feat_table = io_open(options.feats_in, 'bm')
+    stats = None
+    num_utts = 0
+    for feats in feat_table:
+        if stats is None:
+            stats = np.zeros((2, feats.shape[1]), dtype=feats.dtype)
+        stats[0, -1] += feats.shape[0]
+        stats[0, :-1] += feats.sum(0)
+        stats[1, :-1] += (feats ** 2).sum(0)
+        num_utts += 1
+    logger.info('Accumulated stats for {} utterances'.format(num_utts))
+    stats_out = io_open(options.cmvn_stats_out, mode='w')
+    stats_out.write(stats, 'bm')
+    logger.info('Wrote stats to {}'.format(options.cmvn_stats_out))
+
+
+def _alt_apply_cmvn_parse_args(args, logger):
+    parser = KaldiParser(
+        description=alt_apply_cmvn.__doc__,
+        add_verbose=True,
+        logger=logger,
+    )
+    parser.add_argument(
+        'feats_in', type='kaldi_rspecifier',
+        help='Features to apply to',
+    )
+    parser.add_argument(
+        'cmvn_stats_in', type='kaldi_rxfilename',
+        help='Where global CMVN stats are stored',
+    )
+    parser.add_argument(
+        'feats_out', type='kaldi_wspecifier',
+        help='Where to write normalized features',
+    )
+    return parser.parse_args(args)
+
+
+@kaldi_vlog_level_cmd_decorator
+@kaldi_logger_decorator
+def alt_apply_cmvn(args=None):
+    '''Python-based code for CMVN application
+
+    Used for debugging
+    '''
+    logger = logging.getLogger(sys.argv[0])
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    register_logger_for_kaldi(sys.argv[0])
+    options = _alt_apply_cmvn_parse_args(args, logger)
+    cmvn_in = io_open(options.cmvn_stats_in)
+    stats = cmvn_in.read('bm')
+    count = stats[0, -1]
+    means = stats[0, :-1] / count
+    varss = np.maximum(stats[1, :-1] / count - (means ** 2), 1e-5)
+    scales = 1 / np.sqrt(varss)
+    offsets = -means * scales
+    feats_in = io_open(options.feats_in, 'bm')
+    feats_out = io_open(options.feats_out, 'bm', mode='w')
+    num_utts = 0
+    for utt_id, feats in feats_in.items():
+        feats *= scales
+        feats += offsets
+        feats_out.write(utt_id, feats)
+        num_utts += 1
+    logger.log('Applied CMVN to {} utterances'.format(num_utts))
+
+
+def _alt_add_deltas_parse_args(args, logger):
+    parser = KaldiParser(
+        description=alt_add_deltas.__doc__,
+        add_verbose=True,
+        logger=logger,
+    )
+    parser.add_argument(
+        'feats_in', type='kaldi_rspecifier',
+        help='Input features',
+    )
+    parser.add_argument(
+        'feats_out', type='kaldi_wspecifier',
+        help='Output features',
+    )
+    parser.add_argument(
+        '--num-deltas', type=int, defalt=2,
+        help='How many deltas to add'
+    )
+    return parser.parse_args(args)
+
+
+@kaldi_vlog_level_cmd_decorator
+@kaldi_logger_decorator
+def alt_add_deltas(args=None):
+    '''Python-based code for adding deltas to features
+
+    Used for debugging
+    '''
+    logger = logging.getLogger(sys.argv[0])
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    register_logger_for_kaldi(sys.argv[0])
+    options = _alt_add_deltas_parse_args(args, logger)
+    delta_filts = [np.ones((1,))]
+    for _ in range(options.num_deltas):
+        delta_filts.append(
+            np.convolve(delta_filts[-1], (.2, .1, 0., -.1, -.2)))
+    feats_in = io_open(options.feats_in, 'bm')
+    feats_out = io_open(options.feats_out, 'bm', mode='w')
+    num_utts = 0
+    for utt_id, feats in feats_in.items():
+        feats = np.hstack([
+            np.apply_along_axis(np.convolve, 0, feats, delta_filt, 'same')
+            for delta_filt in delta_filts
+        ]).astype(feats.dtype)
+        feats_out.write(utt_id, feats)
+        num_utts += 1
+    logger.log('Added deltas to {} utterances'.format(num_utts))
