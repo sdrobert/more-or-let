@@ -92,8 +92,6 @@ class ModelConfig(Config):
         to .05
     weight_seed : int
         Seed to used when initializing weights. Defaults to 1234
-    num_gpus : int
-        Number of GPUs to train on. Defaults to 1
     '''
 
     def __init__(self, **kwargs):
@@ -109,7 +107,6 @@ class ModelConfig(Config):
         self.pool_freq_width = 3
         self.weight_init_mag = .05
         self.weight_seed = 1234
-        self.num_gpus = 1
         super(ModelConfig, self).__init__(**kwargs)
 
 

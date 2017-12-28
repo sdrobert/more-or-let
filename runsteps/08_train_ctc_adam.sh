@@ -6,7 +6,7 @@ set -e
 source runsteps/xx_utility_funcs.sh
 
 logdir=exp/log/train
-cmd=$decode_cmd
+cmd=$train_cmd
 model_conf=conf/model.conf
 verbose=0
 model_formatter=

@@ -25,7 +25,6 @@ from keras.models import load_model
 from keras.optimizers import Adam
 from keras.optimizers import SGD
 from keras.regularizers import l2
-from keras.utils import multi_gpu_model
 from pydrobert.mol.callbacks import ExtendedEarlyStopping
 from pydrobert.mol.callbacks import ExtendedHistory
 from pydrobert.mol.config import TrainConfig
@@ -430,8 +429,6 @@ class ConvCTC(object):
             ],
             outputs=[loss_layer],
         )
-        if self.config.num_gpus > 1:
-            self.model = multi_gpu_model(self.model, self.config.num_gpus)
 
     def _construct_decoder(self, beam_width):
         label_out = _ctc_decode(
