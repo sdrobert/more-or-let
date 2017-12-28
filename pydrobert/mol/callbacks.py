@@ -23,6 +23,12 @@ __all__ = [
 ]
 
 
+try:
+    FileNotFoundError()
+except NameError:
+    FileNotFoundError = IOError
+
+
 class ExtendedHistory(History):
     '''History callback, enhanced
 
