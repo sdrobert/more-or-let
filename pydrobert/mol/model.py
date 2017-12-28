@@ -468,12 +468,16 @@ def _tf_dft_ctc_decode(y_pred, input_length, beam_width=100):
     import tensorflow as tf
     input_length = tf.reshape(input_length, [-1])
     y_pred = tf.transpose(y_pred, perm=[1, 0, 2])
-    (decoded,), _ = tf.nn.ctc_beam_search_decoder(
-        inputs=y_pred,
-        sequence_length=input_length,
-        beam_width=beam_width,
-        top_paths=1,
-    )
+    if beam_width == 1:
+        (decoded,), _ = tf.nn.ctc_greedy_decoder(
+            inputs=y_pred, sequence_length=input_length)
+    else:
+        (decoded,), _ = tf.nn.ctc_beam_search_decoder(
+            inputs=y_pred,
+            sequence_length=input_length,
+            beam_width=beam_width,
+            top_paths=1,
+        )
     decoded_dense = tf.sparse_to_dense(
         decoded.indices, decoded.dense_shape, decoded.values, default_value=-1)
     return (decoded_dense,)

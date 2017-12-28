@@ -36,7 +36,7 @@ def _loss_data_wrapper(cls):
 
         where:
         - feats is a float array of shape (batch_size, max_n_frames,
-          n_feats, 1) containing left-aligned zero-padded features
+          n_feats, 1) containing left-aligned edge-padded features
         - labels is an int32 array of shape (batch_size, max_n_labels)
           containing left-aligned padded label ids (acquired via lookup
           of label2id_map). The padding value is unspecified (since it
@@ -61,7 +61,7 @@ def _loss_data_wrapper(cls):
             super(_Wrapper, self).__init__(
                 feat_table, label_table,
                 axis_lengths=((0, 0), (1, 0)),
-                batch_pad_mode='constant',
+                batch_pad_mode='edge',
                 add_key=False,
                 **kwargs
             )
@@ -104,7 +104,7 @@ class DecodeData(SequentialData):
         - utt_ids is a list of strings of length batch_size indicating
           what utterances samples in feats are associated with
         - feats is a float array of shape (batch_size, max_n_frames,
-          n_feats, 1) containing left-aligned zero-padded features
+          n_feats, 1) containing left-aligned edge-padded features
         - feat_sizes is an int32 array of shape (batch_size, 1)
           indicating the original n_frames of each sample in the batch
     '''
@@ -118,7 +118,7 @@ class DecodeData(SequentialData):
             feat_table,
             axis_lengths=(0, 0),
             add_key=True,
-            batch_pad_mode='constant',
+            batch_pad_mode='edge',
             **kwargs
         )
 
