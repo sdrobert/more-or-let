@@ -9,18 +9,23 @@ logdir=exp/log/decode
 cmd=$decode_cmd
 model_conf=conf/model.conf
 verbose=0
-beam_width=
 decode_dir=
 
 source utils/parse_options.sh
 
+if $PREPROCESS_ON_BATCH ; then
+  num_feats=41
+else
+  num_feats=123
+fi
+
+# source runsteps/10a_decode_ctc.sh \
+#   kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv exp/scores/${num_feats}
 source runsteps/10a_decode_ctc.sh \
-  kaldi_123 data/123 exp/csv/kaldi_123.csv exp/scores/123
+  fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv exp/scores/${num_feats}
 # source runsteps/10a_decode_ctc.sh \
-#   fbank_123 data/123 exp/csv/fbank_123.csv exp/scores/123
+#   sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv exp/scores/${num_feats}
 # source runsteps/10a_decode_ctc.sh \
-#   sifbank_123 data/123 exp/csv/sifbank_123.csv exp/scores/123
+#   gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv exp/scores/${num_feats}
 # source runsteps/10a_decode_ctc.sh \
-#   gbank_123 data/123 exp/csv/gbank_123.csv exp/scores/123
-# source runsteps/10a_decode_ctc.sh \
-#   sigbank_123 data/123 exp/csv/sigbank_123.csv exp/scores/123
+#   sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv exp/scores/${num_feats}

@@ -10,6 +10,8 @@ import numpy as np
 
 from pydrobert.kaldi.io.corpus import SequentialData
 from pydrobert.kaldi.io.corpus import ShuffledData
+from pydrobert.mol.util import CMVNCalculator
+from pydrobert.mol.util import calculate_deltas
 
 __author__ = "Sean Robertson"
 __email__ = "sdrobert@cs.toronto.edu"
@@ -50,12 +52,19 @@ def _loss_data_wrapper(cls):
         '''
 
         def __init__(
-                self, feat_table, label_table, label2id_map, **kwargs):
+                self, feat_table, label_table, label2id_map,
+                delta_order=0, cmvn_rxfilename=None, **kwargs):
             for invalid_kwarg in ('axis_lengths', 'batch_pad_mode', 'add_key'):
                 if invalid_kwarg in kwargs:
                     raise TypeError(
                         'Invalid keyword argument "{}"'.format(invalid_kwarg))
+            self.delta_order = delta_order
+            if cmvn_rxfilename is not None:
+                self.cmvn = CMVNCalculator(cmvn_rxfilename)
+            else:
+                self.cmvn = None
             self.label2id_map = label2id_map
+            self.blank_label = max(label2id_map.values()) + 1
             if isinstance(label_table, str) or isinstance(label_table, text):
                 label_table = (label_table, 'tv')
             super(_Wrapper, self).__init__(
@@ -69,12 +78,37 @@ def _loss_data_wrapper(cls):
         def batch_generator(self, repeat=False):
             for feats, labels, feat_sizes, label_sizes in super(
                     _Wrapper, self).batch_generator(repeat=repeat):
+                if not self.batch_size:
+                    feats = np.expand_dims(feats, 0)
+                    labels = [labels]
+                    feat_sizes = [feat_sizes]
+                    label_sizes = [label_sizes]
+                if self.cmvn or self.delta_order:
+                    new_shape = list(feats.shape)
+                    num_feats = new_shape[2]
+                    new_shape[2] *= (1 + self.delta_order)
+                    new_feats = np.empty(new_shape, dtype=feats.dtype)
+                    for samp_idx in range(len(feats)):
+                        if self.cmvn:
+                            new_feats[samp_idx, :, :num_feats] = (
+                                self.cmvn.apply(feats[samp_idx], in_place=True)
+                            )
+                        else:
+                            new_feats[samp_idx, :, :num_feats] = (
+                                feats[samp_idx]
+                            )
+                        if self.delta_order:
+                            new_feats[samp_idx] = calculate_deltas(
+                                new_feats[samp_idx, :, :num_feats],
+                                self.delta_order
+                            )
+                    feats = new_feats
                 feats = np.expand_dims(feats, -1)
                 max_label_sequence_len = max(len(seq) for seq in labels)
-                label_batch = np.empty(
+                label_batch = np.ones(
                     (len(labels), max_label_sequence_len),
                     dtype=np.int32
-                )
+                ) * self.blank_label
                 for samp_idx, seq in enumerate(labels):
                     label_batch[samp_idx, :len(seq)] = tuple(
                         self.label2id_map[lab] for lab in seq)
@@ -82,7 +116,7 @@ def _loss_data_wrapper(cls):
                     np.array(feat_sizes, dtype=np.int32, copy=False), -1)
                 label_sizes = np.expand_dims(
                     np.array(label_sizes, dtype=np.int32, copy=False), -1)
-                dummy = np.empty(feat_sizes.shape, dtype=feats.dtype)
+                dummy = np.zeros(feat_sizes.shape, dtype=feats.dtype)
                 yield [feats, label_batch, feat_sizes, label_sizes], [dummy]
 
     return _Wrapper
@@ -109,11 +143,17 @@ class DecodeData(SequentialData):
           indicating the original n_frames of each sample in the batch
     '''
 
-    def __init__(self, feat_table, **kwargs):
+    def __init__(
+            self, feat_table, delta_order=0, cmvn_rxfilename=None, **kwargs):
         for invalid_kwarg in ('axis_lengths', 'batch_pad_mode', 'add_key'):
             if invalid_kwarg in kwargs:
                 raise TypeError(
                     'Invalid keyword argument "{}"'.format(invalid_kwarg))
+        self.delta_order = delta_order
+        if cmvn_rxfilename is not None:
+            self.cmvn = CMVNCalculator(cmvn_rxfilename)
+        else:
+            self.cmvn = None
         super(DecodeData, self).__init__(
             feat_table,
             axis_lengths=(0, 0),
@@ -125,6 +165,27 @@ class DecodeData(SequentialData):
     def batch_generator(self, repeat=False):
         for keys, feats, feat_sizes in super(DecodeData, self).batch_generator(
                 repeat=repeat):
+            if not self.batch_size:
+                keys = [keys]
+                feats = np.expand_dims(feats, 0)
+                feat_sizes = [feat_sizes]
+            if self.cmvn or self.delta_order:
+                new_shape = list(feats.shape)
+                num_feats = new_shape[2]
+                new_shape[2] *= (1 + self.delta_order)
+                new_feats = np.empty(new_shape, dtype=feats.dtype)
+                for samp_idx in range(len(feats)):
+                    if self.cmvn:
+                        new_feats[samp_idx, :, :num_feats] = self.cmvn.apply(
+                            feats[samp_idx], in_place=True)
+                    else:
+                        new_feats[samp_idx, :, :num_feats] = feats[samp_idx]
+                    if self.delta_order:
+                        new_feats[samp_idx] = calculate_deltas(
+                            new_feats[samp_idx, :, :num_feats],
+                            self.delta_order
+                        )
+                feats = new_feats
             feats = np.expand_dims(feats, -1)
             feat_sizes = np.expand_dims(
                 np.array(feat_sizes, dtype=np.int32), -1)

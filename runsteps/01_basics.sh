@@ -11,7 +11,7 @@ if $USE_CONDA; then
     source deactivate 2> /dev/null
     conda remove -n ${CONDA_ENV_NAME} --all -y 2> /dev/null || iecho "Nothing to remove"
   fi
-  conda create -n ${CONDA_ENV_NAME} python=${CONDA_PYTHON_VER} numpy scipy h5py pyyaml six -y
+  conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VER} numpy scipy h5py pyyaml six -y
   source activate ${CONDA_ENV_NAME}
 else
   if $USE_VIRTUALENV; then
@@ -20,10 +20,11 @@ else
       wecho "Deleting old virtualenv at ${VIRTUALENV_DIR}"
       rm -rf "${VIRTUALENV_DIR}"
     fi
-    virtualenv "${VIRTUALENV_DIR}"
+    virtualenv --python "python${PYTHON_VER}" "${VIRTUALENV_DIR}"
     source "${VIRTUALENV_DIR}/bin/activate"
   else
     iecho "Using local python"
   fi
+  pip install -U pip setuptools
   pip install numpy scipy h5py pyyaml six
 fi

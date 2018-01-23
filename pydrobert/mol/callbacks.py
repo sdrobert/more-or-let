@@ -160,24 +160,6 @@ class ExtendedHistory(History):
             self.csv_epoch = -float('inf')
             self.csv_history = self.additional_metadata
 
-    def get_last_model_path(self):
-        '''Get the last model path from recorded epochs'''
-        if self.epoch and 'model_path' in self.history:
-            for model_path in self.history['model_path'][::-1]:
-                if model_path:
-                    return model_path
-        self.load_csv_history()
-        return self.csv_history.get('model_path')
-
-    def get_last_training_stage(self):
-        '''Get the last training stage from recorded epochs'''
-        if self.epoch and 'training_stage' in self.history:
-            for training_stage in self.history['training_stage'][::-1]:
-                if training_stage:
-                    return training_stage
-        self.load_csv_history()
-        return self.csv_history.get('training_stage')
-
     def get_last_epoch(self):
         '''Get the last recorded epoch'''
         if self.epoch:
@@ -186,19 +168,31 @@ class ExtendedHistory(History):
             self.load_csv_history()
             return self.csv_epoch
 
+    def get_last(self, key):
+        '''Get the last recorded value of a specific property'''
+        if key == 'epoch':
+            return self.get_last_epoch()
+        if self.epoch and key in self.history:
+            for value in self.history[key][::-1]:
+                if value is not None:
+                    return value
+        self.load_csv_history()
+        return self.csv_history.get(key)
+
     def on_train_begin(self, logs=None):
-        logs = logs or dict()
+        logs = logs if logs is not None else dict()
         self.epoch = []
         self.history = dict()
         self.load_csv_history()
         for key in (
-                'monitored', 'best', 'mode', 'patience', 'min_delta', 'wait',
+                'monitor', 'best', 'mode', 'patience', 'min_delta', 'wait',
                 'training_stage'):
-            logs['prev_' + key] = self.csv_history.get(key)
+            if key in self.csv_history:
+                logs['prev_' + key] = self.csv_history[key]
         logs['training_stage'] = self.training_stage
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or dict()
+        logs = logs if logs is not None else dict()
         if epoch in self.epoch:
             raise ValueError('Epoch {} occurred twice!'.format(epoch))
         # inject all logs but model_path
@@ -225,7 +219,7 @@ class ExtendedEarlyStopping(EarlyStopping):
     This subclass of ``EarlyStopping`` puts its hyperparameters in the
     logs after every epoch. They include
 
-     - the value monitored ("monitored")
+     - the value monitored ("monitor")
      - the "mode", i.e. how to compare monitored values (one of "min",
        "max", or "auto")
      - the best monitored value seen ("best")
@@ -291,7 +285,7 @@ class ExtendedEarlyStopping(EarlyStopping):
         self.mode = 'min' if self.monitor_op == np.less else 'max'
 
     def on_train_begin(self, logs=None):
-        logs = logs or dict()
+        logs = logs if logs is not None else dict()
         super(ExtendedEarlyStopping, self).on_train_begin(logs)
         verb_message = ''
         if any(not logs.get('prev_' + hp) for hp in self.hyperparams):
@@ -306,8 +300,12 @@ class ExtendedEarlyStopping(EarlyStopping):
                 setattr(self, hyperparam, logs['prev_' + hyperparam])
             if self.mode == 'min':
                 self.monitor_op = np.less
+                self.min_delta *= -1  # stored as absolute value
             else:
                 self.monitor_op = np.greater
+        if self.wait >= self.patience:
+            self.stopped_epoch = -1
+            self.model.stop_training = True
         if self.verbose > 0:
             for hyperparam in self.hyperparams:
                 verb_message += '{}={}, '.format(
@@ -315,10 +313,10 @@ class ExtendedEarlyStopping(EarlyStopping):
             print(verb_message)
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or dict()
+        logs = logs if logs is not None else dict()
+        super(ExtendedEarlyStopping, self).on_epoch_end(epoch, logs=logs)
         for hyperparam in self.hyperparams:
             logs[hyperparam] = getattr(self, hyperparam)
         # this is made negative when we monitor with 'min', but we want
         # it to look like our setting, so keep it max
         logs['min_delta'] = abs(self.min_delta)
-        super(ExtendedEarlyStopping, self).on_epoch_end(epoch, logs=logs)

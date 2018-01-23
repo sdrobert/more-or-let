@@ -7,19 +7,11 @@
 # test/feats_${name}.scp
 # (a follow-up to 07c_pybank_creation)
 
-tolerance=1
-strict=true
-pad_mode=edge
 ref_rspecifier_dev=
 ref_rspecifier_train=
 ref_rspecifier_test=
-norm_means=true
-norm_vars=true
-verbose=0
-compress=true
 delta_order=2
 delta_window=2
-truncate=0
 
 source utils/parse_options.sh
 
@@ -46,7 +38,6 @@ for x in train dev test; do
     --verbose=${verbose} \
     --delta-order=${delta_order} \
     --delta-window=${delta_window} \
-    --truncate=${truncate} \
     "scp:${in_feat_root}/$x/feats_${in_feat_name}.scp" \
       "ark,scp:${tmpdir}/$x/feats_${out_feat_name}.ark,${tmpdir}/$x/feats_${out_feat_name}.scp"
 done

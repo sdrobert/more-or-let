@@ -58,19 +58,25 @@ reference dims $(head -n 1 """${tmpdir}/exp_dims""")."
   fi
   if $norm_means || $norm_vars; then
     if [ $x = "train" ]; then
-      # compute CMVN stats in temp dir. Once we apply them, we don't need them
-      # any more. Note these are speaker independent
-      compute-cmvn-stats \
-        --verbose=${verbose} \
-        "${out_rspecifier}" "${tmpdir}/cmvn_${name}.kdt"
+      if $PREPROCESS_ON_BATCH ; then
+        compute-cmvn-stats \
+          --verbose=${verbose} \
+          "${out_rspecifier}" "${data}/train/cmvn_${name}.kdt"
+      else
+        compute-cmvn-stats \
+          --verbose=${verbose} \
+          "${out_rspecifier}" "${tmpdir}/cmvn_${name}.kdt"
+      fi
     fi
-    apply-cmvn \
-      --verbose=${verbose} \
-      --norm-means=${norm_means} \
-      --norm-vars=${norm_vars} \
-      "${tmpdir}/cmvn_${name}.kdt" "${out_rspecifier}" \
-      "ark:${tmpdir}/$x/standard_${name}.ark"
-    out_rspecifier="ark:${tmpdir}/$x/standard_${name}.ark"
+    if ! $PREPROCESS_ON_BATCH ; then
+      apply-cmvn \
+        --verbose=${verbose} \
+        --norm-means=${norm_means} \
+        --norm-vars=${norm_vars} \
+        "${tmpdir}/cmvn_${name}.kdt" "${out_rspecifier}" \
+        "ark:${tmpdir}/$x/standard_${name}.ark"
+      out_rspecifier="ark:${tmpdir}/$x/standard_${name}.ark"
+    fi
   fi
   mkdir -p "${data}/$x"
   copy-feats \

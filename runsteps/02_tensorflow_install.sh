@@ -63,9 +63,12 @@ if $USE_CONDA; then
     cpu_name="tensorflow=$version"
   fi
   conda install $gpu_name -y || gpu_ok=false
-  $gpu_ok && (
-    python -c "import tensorflow" || (
-      conda remove -n tensorflow; gpu_ok=false))
+  if $gpu_ok; then 
+    if ! python -c "import tensorflow"; then
+      gpu_ok=false
+      conda remove tensorflow-gpu -y
+    fi
+  fi
   if ! $gpu_ok; then
     wecho \
 'Unable to install tensorflow-gpu. Will try the cpu installation.
@@ -92,9 +95,12 @@ else
   fi
   gpu_ok=true
   pip install "$gpu_name" || gpu_ok=false
-  $gpu_ok && (
-    python -c "import tensorflow" || (
-    pip uninstall tensorflow-gpu -y; gpu_ok=false))
+  if $gpu_ok; then
+    if ! python -c "import tensorflow"; then
+      pip uninstall tensorflow -y
+      gpu_ok=false
+    fi
+  fi
   if ! $gpu_ok; then
     wecho \
 'Unable to install tensorflow-gpu. Will try the cpu installation.

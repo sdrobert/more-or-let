@@ -34,6 +34,19 @@ num_labels=$(echo 1 + $(
 
 iecho "Found ${num_feats} feats and ${num_labels} labels"
 
+if $PREPROCESS_ON_BATCH ; then
+  extra_args=(
+    "--delta-order=2"
+    "--cmvn-rxfilename=${feat_root}/train/cmvn_${feat_name}.kdt"
+    "--batch-size=1"
+    ""
+  )
+  # the last "" allows us to shove this into another arg's quotations without
+  # ruining the behaviour of the last arg
+  # also, performing delta ops on padded batches introduces a non-determinism
+  # at test time, so we reduce the batch size to 1
+fi
+
 score_dir="$4"
 
 tmpdir=$(mktemp -d)
@@ -48,7 +61,7 @@ mkdir -p "${score_dir}"
 
 iecho "Decoding ${feat_name}"
 
-for x in dev test; do
+for x in test; do
   iecho "$x partition"
   mkdir -p "${score_dir}/${x}"
   mkdir -p "${decode_dir}/${x}"
@@ -57,29 +70,24 @@ for x in dev test; do
     -m "conf/phones.60-48-39.map" \
     -from 60 -to 39 \
     > "${decode_dir}/${x}/39_ref.txt"
-  if [ -z "${beam_width}" ]; then
-    if [ $x = dev ]; then
-      beam_widths=($(seq 1 20))
-      beam_widths=(${beam_widths[*]} 100 1000)
-      iecho "Trying beams ${beam_widths[*]}"
-    else
-      best_per=100
-      best_beam=1
-      for per_file in "${score_dir}/dev/per_${feat_name}."*.txt; do
-        per=$(grep "Processed" $per_file | cut -d' ' -f 4 | cut -d'%' -f 1)
-        beam=$(awk -F. '{print $(NF-1)}' <<< "${per_file}")
-        iecho "PER for beam $beam was ${per}%"
-        if [ $(bc -l <<< "$best_per > $per") = 1 ]; then
-          best_beam=$beam
-          best_per=$per
-        fi
-      done
-      iecho "Using best beam $best_beam"
-      beam_widths=(${best_beam})
-    fi
+  if [ $x = dev ]; then
+    beam_widths=($(seq 1 20))
+    beam_widths=(${beam_widths[*]} 100 1000)
+    iecho "Trying beams ${beam_widths[*]}"
   else
-    iecho "Using beam ${beam_width}"
-    beam_widths=(${beam_width})
+    best_per=100
+    best_beam=1
+    for per_file in "${score_dir}/dev/per_${feat_name}."*.txt; do
+      per=$(grep "Processed" $per_file | cut -d' ' -f 5 | cut -d'%' -f 1)
+      beam=$(awk -F. '{print $(NF-1)}' <<< "${per_file}")
+      iecho "PER for beam $beam was ${per}%"
+      if [ $(bc -l <<< "$best_per > $per") = 1 ]; then
+        best_beam=$beam
+        best_per=$per
+      fi
+    done
+    iecho "Using best beam $best_beam"
+    beam_widths=(${best_beam})
   fi
   for beam_width in ${beam_widths[*]}; do
     iecho "Decoding $x partition's ${feat_name} with beam width ${beam_width}"
@@ -93,7 +101,7 @@ for x in dev test; do
         "--num-labels=${num_labels}" \
         "--beam-width=${beam_width}" \
         "--model-path=${model_path}" \
-        "--config=${model_conf}"
+        "${extra_args[@]}--config=${model_conf}"
     iecho "Decoded ${feat_name} in $x"
     iecho "Normalizing and computing PER for ${feat_name} in $x"
     local/timit_norm_trans.pl \
@@ -102,7 +110,7 @@ for x in dev test; do
       -from 60 -to 39 \
       > "${decode_dir}/${x}/39_hyp_${feat_name}.${beam_width}.txt"
     iecho "Scoring ${x}"
-    compute-per --print-tables=true --strict=true \
+    compute-error-rate --print-tables=true --strict=true \
       "ark:${decode_dir}/${x}/39_ref.txt" \
       "ark,t,p:${decode_dir}/${x}/39_hyp_${feat_name}.${beam_width}.txt" \
       "${score_dir}/${x}/per_${feat_name}.${beam_width}.txt"

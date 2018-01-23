@@ -119,14 +119,19 @@ class ConvCTC(object):
             **additional_metadata
         )
         initial_epoch = max(-1, history.get_last_epoch()) + 1
-        # get acoustic model ready
-        model_path = history.get_last_model_path()
-        prev_training_stage = history.get_last_training_stage()
+        model_path = history.get_last('model_path')
+        prev_training_stage = history.get_last('training_stage')
         self._ready_acoustic_model(
             model_path=model_path,
             train_config=train_config,
             prev_training_stage=prev_training_stage,
         )
+        if prev_training_stage == train_config.training_stage:
+            # it's possible that we've already hit our early stopping
+            # criterion. Just return in that case
+            prev_wait = int(history.get_last('wait'))
+            if prev_wait >= train_config.patience:
+                return
         if val_data:
             val_monitored = 'val_loss'
         else:
@@ -258,20 +263,36 @@ class ConvCTC(object):
         else:
             for batch in eval_data.batch_generator():
                 if eval_style == 3:
+                    if not eval_data.batch_size:
+                        batch = (batch[0][np.newaxis, :, :, :], [batch[1]])
                     ret_labels = decoder(batch + (0,))[0]
-                    yield [
+                    ret_labels = [
                         tuple(int(idee) for idee in sample if idee != -1)
                         for sample in ret_labels
                     ]
+                    if not eval_data.batch_size:
+                        yield ret_labels[0]
+                    else:
+                        yield ret_labels
                 else:
+                    if not eval_data.batch_size:
+                        batch = (
+                            [batch[0]],
+                            batch[1][np.newaxis, :, :, :],
+                            np.asarray([batch[2]], dtype=np.int32),
+                        )
                     ret_labels = decoder(batch[1:] + (0,))[0]
-                    yield [
+                    ret_labels = [
                         (
                             key,
                             tuple(int(idee) for idee in sample if idee != -1),
                         )
                         for key, sample in zip(batch[0], ret_labels)
                     ]
+                    if not eval_data.batch_size:
+                        yield ret_labels[0]
+                    else:
+                        yield ret_labels
 
     def _ready_acoustic_model(
             self, model_path=None, train_config=None,
@@ -311,17 +332,23 @@ class ConvCTC(object):
 
     def _construct_acoustic_model(self, train_config=TrainConfig()):
         # construct an acoustic model from scratch
-        layer_kwargs = {
-            'activation': 'linear',
-            'kernel_initializer': RandomUniform(
-                minval=-self.config.weight_init_mag,
-                maxval=self.config.weight_init_mag,
-                seed=self.config.weight_seed),
-        }
-        if train_config.training_stage == 'sgd':
-            layer_kwargs['kernel_regularizer'] = l2(train_config.sgd_reg)
-        # convolutional layer pattern
+        self._cur_weight_seed = self.config.weight_seed - 1
 
+        def _layer_kwargs():
+            self._cur_weight_seed = self._cur_weight_seed + 1
+            ret = {
+                'activation': 'linear',
+                'kernel_initializer': RandomUniform(
+                    minval=-self.config.weight_init_mag,
+                    maxval=self.config.weight_init_mag,
+                    seed=self._cur_weight_seed,
+                ),
+            }
+            if train_config.training_stage == 'sgd':
+                ret['kernel_regularizer'] = l2(train_config.sgd_reg)
+            return ret
+
+        # convolutional layer pattern
         def _conv_maxout_layer(last_layer, n_filts, name_prefix, dropout=True):
             conv_a = Conv2D(
                 n_filts,
@@ -332,7 +359,7 @@ class ConvCTC(object):
                 ),
                 padding='same',
                 name=name_prefix + '_a',
-                **layer_kwargs
+                **_layer_kwargs()
             )(last_layer)
             conv_b = Conv2D(
                 n_filts,
@@ -343,7 +370,7 @@ class ConvCTC(object):
                 ),
                 padding='same',
                 name=name_prefix + '_b',
-                **layer_kwargs
+                **_layer_kwargs()
             )(last_layer)
             last = Maximum(name=name_prefix + '_m')([conv_a, conv_b])
             # pre-weights (i.e. post max), as per
@@ -354,7 +381,11 @@ class ConvCTC(object):
             return last
         # inputs
         feat_input = Input(
-            shape=(None, self.config.num_feats, 1),
+            shape=(
+                None,
+                self.config.num_feats * (1 + self.config.delta_order),
+                1,
+            ),
             name='feat_in',
         )
         feat_size_input = Input(
@@ -389,11 +420,11 @@ class ConvCTC(object):
             name_prefix = 'dense_{}'.format(layer_no)
             dense_a = Dense(
                 self.config.num_dense_hidden, name=name_prefix + '_a',
-                **layer_kwargs
+                **_layer_kwargs()
             )
             dense_b = Dense(
                 self.config.num_dense_hidden, name=name_prefix + '_b',
-                **layer_kwargs
+                **_layer_kwargs()
             )
             td_a = TimeDistributed(
                 dense_a, name=name_prefix + '_td_a')(last_layer)
@@ -405,7 +436,7 @@ class ConvCTC(object):
             )(last_layer)
         activation_dense = Dense(
             self.config.num_labels, name='dense_activation',
-            **layer_kwargs
+            **_layer_kwargs()
         )
         activation_layer = TimeDistributed(
             activation_dense, name='dense_activation_td')(last_layer)

@@ -62,7 +62,13 @@ class ModelConfig(Config):
     num_labels : int
         Number of unique labels, including blank. Defaults to 61
     num_feats : int
-        Number of features, including deltas. Defaults to 123
+        Number of features per recording. Defaults to 123
+    delta_order : int
+        Number of deltas to concatenate along the feature axis. Defaults
+        to 0
+    cmvn_rxfilename : str
+        If specified, CMVN will be applied to each utterance using the
+        stats accumulated to `cmvn_rxfilename`
     init_num_filt_channels : int
         The initial number of filter channels per convolutional
         layer. Defaults to 64
@@ -97,8 +103,10 @@ class ModelConfig(Config):
     def __init__(self, **kwargs):
         self.num_labels = 61
         self.num_feats = 123
+        self.delta_order = 0
+        self.cmvn_rxfilename = None
         self.init_num_filt_channels = 64
-        self.num_dense_hidden = 612
+        self.num_dense_hidden = 512
         self.filt_time_width = 5
         self.filt_freq_width = 3
         self.filt_time_stride = 1

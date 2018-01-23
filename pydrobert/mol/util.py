@@ -4,94 +4,147 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from numpy import zeros
+import numpy as np
+
+from pydrobert.kaldi.io import open as kaldi_open
+from pydrobert.kaldi.io.enums import KaldiDataType
 
 __author__ = "Sean Robertson"
 __email__ = "sdrobert@cs.toronto.edu"
 __license__ = "Apache 2.0"
 __copyright__ = "Copyright 2017 Sean Robertson"
 
-def edit_distance(
-        ref, hyp, insertion_cost=1, deletion_cost=1, substitution_cost=1,
-        return_tables=False):
-    '''Levenshtein (edit) distance
+
+def calculate_deltas(data, num_deltas, axis=0, target_axis=-1, concatenate=True):
+    '''Calculate deltas for arrays
+
+    Deltas are simply weighted rolling averages; double deltas are the rolling
+    averages of rolling averages. This can be done an arbitrary number of times.
+
+    The edges are handled slightly differently from Kaldi. They are zero-padded
+    rather than edge-padded.
 
     Parameters
     ----------
-    ref : tuple
-        Tuple of tokens of reference text (source)
-    hyp : tuple
-        Tuple of tokens of hypothesis text (target)
-    insertion_cost : int
-        Penalty for `hyp` inserting a token to ref
-    deletion_cost : int
-        Penalty for `hyp` deleting a token from ref
-    substitution_cost : int
-        Penalty for `hyp` swapping tokens in ref
-    return_tables : bool
-        See below
+    data : array-like
+        At least one dimensional
+    num_deltas : int
+        A nonnegative integer specifying the number of delta calculations
+    axis : int
+        The axis of `data` to be calculated over (i.e. convolved)
+    target_axis : int
+        The location where the new axis, for deltas, will be inserted
+    concatenate : bool
+        Whether to concatenate the deltas to the end of `target_axis` (`True`),
+        or create a new axis in this location (`False`)
 
     Returns
     -------
-    int or (int, dict, dict, dict, dict)
-        Returns the edit distance of `hyp` from `ref`. If `return_tables`
-        is `True`, this returns a tuple of the edit distance, a dict of
-        insertion counts per token, a dict of deletion counts per token,
-        a dict of substitution counts per token, and a dict of counts of
-        reference tokens
+    array-like
     '''
-    # we keep track of the whole dumb matrix in case we need to
-    # backtrack (for `return_tables`). Should be okay for WER/PER, since
-    # the number of tokens per vector will be on the order of tens
-    distances = zeros((len(ref) + 1, len(hyp) + 1), dtype=int)
-    distances[0, :] = range(len(hyp) + 1)
-    distances[:, 0] = range(len(ref) + 1)
-    for hyp_idx in range(1, len(hyp) + 1):
-        hyp_token = hyp[hyp_idx - 1]
-        for ref_idx in range(1, len(ref) + 1):
-            ref_token = ref[ref_idx - 1]
-            sub_cost = substitution_cost * (1 - int(hyp_token == ref_token))
-            distances[ref_idx, hyp_idx] = min(
-                distances[ref_idx - 1, hyp_idx] + deletion_cost,
-                distances[ref_idx, hyp_idx - 1] + insertion_cost,
-                distances[ref_idx - 1, hyp_idx - 1] + sub_cost
-            )
-    if not return_tables:
-        return distances[-1, -1]
-    # backtrack to get a count of insertions, deletions, and subs
-    # prefer insertions to deletions to substitutions
-    inserts, deletes, subs, totals = dict(), dict(), dict(), dict()
-    for token in ref + hyp:
-        inserts[token] = 0
-        deletes[token] = 0
-        subs[token] = 0
-        totals[token] = 0
-    for token in ref:
-        totals[token] += 1
-    ref_idx = len(ref)
-    hyp_idx = len(hyp)
-    while ref_idx or hyp_idx:
-        if not ref_idx:
-            hyp_idx -= 1
-            inserts[hyp[hyp_idx]] += 1
-        elif not hyp_idx:
-            ref_idx -= 1
-            deletes[ref[ref_idx]] += 1
-        elif ref[ref_idx - 1] == hyp[hyp_idx - 1]:
-            hyp_idx -= 1
-            ref_idx -= 1
-        elif distances[ref_idx, hyp_idx - 1] <= \
-                distances[ref_idx - 1, hyp_idx] and \
-                distances[ref_idx, hyp_idx - 1] <= \
-                distances[ref_idx - 1, hyp_idx - 1]:
-            hyp_idx -= 1
-            inserts[hyp[hyp_idx]] += 1
-        elif distances[ref_idx - 1, hyp_idx] <= \
-                distances[ref_idx - 1, hyp_idx - 1]:
-            ref_idx -= 1
-            deletes[ref[ref_idx]] += 1
+    delta_data_list = [data]
+    delta_filt = np.asarray((.2, .1, 0., -.1, -.2))
+    cur_filt = np.ones(1)
+    for _ in range(num_deltas):
+        cur_filt = np.convolve(cur_filt, delta_filt, 'full')
+        delta_data_list.append(
+            np.apply_along_axis(np.convolve, axis, data, cur_filt, 'same'))
+    if concatenate:
+        return np.concatenate(delta_data_list, target_axis)
+    else:
+        return np.stack(delta_data_list, target_axis)
+
+
+class CMVNCalculator(object):
+    '''Perform unit normalization on each row of features
+
+    Instances of this class accumulate means and sums of squares over
+    features. Later features can then be transformed according to those
+    statistics to something close to zero mean and unit variance.
+
+    The implementation is based off Kaldi's, but doesn't do casting to
+    double precision in intermediate values
+
+    Parameters
+    ----------
+    rxfilename : str, optional
+        If provided, sufficient statistics will be loaded from this
+        extended file
+    along_axis : int
+        What axis to compute statistics over
+
+    Attributes
+    ----------
+    stats : array-like
+        Stored stats matrix
+    along_axis : int
+        What axis to compute statistics over
+    '''
+
+    def __init__(self, rxfilename=None, along_axis=0):
+        self.along_axis = along_axis
+        if KaldiDataType.BaseMatrix.is_double:
+            self.stats_dtype = np.float64
         else:
-            hyp_idx -= 1
-            ref_idx -= 1
-            subs[ref[ref_idx]] += 1
-    return distances[-1, -1], inserts, deletes, subs, totals
+            self.stats_dtype = np.float32
+        if rxfilename:
+            with kaldi_open(rxfilename) as stats_file:
+                self.stats = stats_file.read('bm')
+        else:
+            self.stats = None
+
+    def accumulate(self, feats):
+        '''Add feature matrix statistics to counts in key
+
+        Parameters
+        ----------
+        feats : array-like
+            A 2D array to accumulate over
+        '''
+        if self.stats is None:
+            self.stats = np.zeros(
+                (2, feats.shape[1 - self.along_axis] + 1),
+                dtype=self.stats_dtype,
+            )
+        self.stats[0, -1] += feats.shape[self.along_axis]
+        self.stats[0, :-1] += feats.sum(self.along_axis)
+        self.stats[1, :-1] += (feats ** 2).sum(self.along_axis)
+
+    def apply(self, feats, in_place=False):
+        '''Apply CMVN to features
+
+        Parameters
+        ----------
+        feats : array-like
+            2D array to transform
+        in_place : bool
+            Whether to apply the transformation in place (if possible)
+            or copy the feature matrix
+
+        Raises
+        ------
+        KeyError
+        '''
+        if feats.ndim != 2:
+            raise ValueError(
+                'Expected 2-dimensional feature matrix, got {}'.format(
+                    feats.ndim))
+        count = self.stats[0, -1]
+        means = self.stats[0,:-1] / count
+        varss = np.maximum(self.stats[1, :-1] / count - np.square(means), 1e-5)
+        scales = 1 / np.sqrt(varss)
+        offsets = -means * scales
+        if not in_place:
+            feats = feats.copy()
+        if self.along_axis:
+            scales = scales[:, np.newaxis]
+            offsets = offsets[:, np.newaxis]
+        feats *= scales
+        return feats
+
+    def save(self, wxfilename):
+        '''Save statistics to extended file name'''
+        entries = list(self._stats.items())
+        entries.sort()
+        with kaldi_open(wxfilename, mode='w') as stats_file:
+            stats_file.write(self.stats)

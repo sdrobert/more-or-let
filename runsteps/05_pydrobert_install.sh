@@ -11,7 +11,7 @@ if resolve_blas; then
   pip install --upgrade \
     git+https://github.com/sdrobert/pydrobert-kaldi.git || \
       error_exit "Failed to install pydrobert-kaldi"
-  if ! python -c "import pydrobert.kaldi" 2> /dev/null; then
+  if ! python -c "import pydrobert.kaldi" ; then
     eecho "Could not import pydrobert-kaldi. Uninstalling"
     pip uninstall pydrobert-kaldi -y
     exit 1

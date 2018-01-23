@@ -13,23 +13,28 @@ model_formatter=
 
 source utils/parse_options.sh
 
+if $PREPROCESS_ON_BATCH ; then
+  num_feats=41
+else
+  num_feats=123
+fi
+
 iecho "Adam training"
 
-# 123 feats (40+1 filters, + deltas + double deltas)
+# source runsteps/08a_train_ctc.sh \
+#   --training-stage adam \
+#   kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv
 source runsteps/08a_train_ctc.sh \
   --training-stage adam \
-  kaldi_123 data/123 exp/csv/kaldi_123.csv
+  fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv
 # source runsteps/08a_train_ctc.sh \
 #   --training-stage adam \
-#   fbank_123 data/123 exp/csv/fbank_123.csv
+#   sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv
 # source runsteps/08a_train_ctc.sh \
 #   --training-stage adam \
-#   sifbank_123 data/123 exp/csv/sifbank_123.csv
+#   gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv
 # source runsteps/08a_train_ctc.sh \
 #   --training-stage adam \
-#   gbank_123 data/123 exp/csv/gbank_123.csv
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage adam \
-#   sigbank_123 data/123 exp/csv/sigbank_123.csv
+#   sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv
 
 iecho "Done Adam training"

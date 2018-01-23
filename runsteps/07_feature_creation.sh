@@ -51,34 +51,30 @@ source runsteps/07c_pybank_creation.sh \
   --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
   sigbank_41 data/41 conf/sigbank_41.json
 
-# 41 * 3 delta creation
-mkdir -p data/123
-rsync -r data/full/{dev,train,test} data/123
+if ! $PREPROCESS_ON_BATCH ; then
+  # 41 * 3 delta creation
+  mkdir -p data/123
+  rsync -r data/full/{dev,train,test} data/123
 
-source runsteps/07d_delta_creation.sh data/41 kaldi_41 data/123 kaldi_123
+  source runsteps/07d_delta_creation.sh \
+    --norm-means false --norm-vars false \
+    data/41 kaldi_41 data/123 kaldi_123
 
-source runsteps/07d_delta_creation.sh \
-  --ref-rspecifier-train scp:data/123/train/feats_kaldi_123.scp \
-  --ref-rspecifier-dev scp:data/123/dev/feats_kaldi_123.scp \
-  --ref-rspecifier-test scp:data/123/test/feats_kaldi_123.scp \
-  data/41 fbank_41 data/123 fbank_123
+  source runsteps/07d_delta_creation.sh \
+    --norm-means false --norm-vars false \
+    data/41 fbank_41 data/123 fbank_123
 
-source runsteps/07d_delta_creation.sh \
-  --ref-rspecifier-train scp:data/123/train/feats_kaldi_123.scp \
-  --ref-rspecifier-dev scp:data/123/dev/feats_kaldi_123.scp \
-  --ref-rspecifier-test scp:data/123/test/feats_kaldi_123.scp \
-  data/41 sifbank_41 data/123 sifbank_123
+  source runsteps/07d_delta_creation.sh \
+    --norm-means false --norm-vars false \
+    data/41 sifbank_41 data/123 sifbank_123
 
-source runsteps/07d_delta_creation.sh \
-  --ref-rspecifier-train scp:data/123/train/feats_kaldi_123.scp \
-  --ref-rspecifier-dev scp:data/123/dev/feats_kaldi_123.scp \
-  --ref-rspecifier-test scp:data/123/test/feats_kaldi_123.scp \
-  data/41 gbank_41 data/123 gbank_123
+  source runsteps/07d_delta_creation.sh \
+    --norm-means false --norm-vars false \
+    data/41 gbank_41 data/123 gbank_123
 
-source runsteps/07d_delta_creation.sh \
-  --ref-rspecifier-train scp:data/123/train/feats_kaldi_123.scp \
-  --ref-rspecifier-dev scp:data/123/dev/feats_kaldi_123.scp \
-  --ref-rspecifier-test scp:data/123/test/feats_kaldi_123.scp \
-  data/41 sigbank_41 data/123 sigbank_123
+  source runsteps/07d_delta_creation.sh \
+    --norm-means false --norm-vars false \
+    data/41 sigbank_41 data/123 sigbank_123
+fi
 
 iecho "Done feature creation"
