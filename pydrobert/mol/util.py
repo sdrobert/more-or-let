@@ -18,11 +18,10 @@ __copyright__ = "Copyright 2017 Sean Robertson"
 def calculate_deltas(data, num_deltas, axis=0, target_axis=-1, concatenate=True):
     '''Calculate deltas for arrays
 
-    Deltas are simply weighted rolling averages; double deltas are the rolling
-    averages of rolling averages. This can be done an arbitrary number of times.
-
-    The edges are handled slightly differently from Kaldi. They are zero-padded
-    rather than edge-padded.
+    Deltas are simply weighted rolling averages; double deltas are the
+    rolling averages of rolling averages. This can be done an arbitrary
+    number of times. Because most signals are non-zero in silence, the
+    signal is edge-padded before convolution.
 
     Parameters
     ----------
@@ -42,13 +41,19 @@ def calculate_deltas(data, num_deltas, axis=0, target_axis=-1, concatenate=True)
     -------
     array-like
     '''
+    max_filt_width = 4 * num_deltas + 1
+    pad_widths = [(0, 0)] * len(data.shape)
+    pad_widths[axis] = ((max_filt_width - 1) // 2, (max_filt_width - 1) // 2)
+    slices = [slice(None)]
+    slices[axis] = slice((max_filt_width - 1) // 2, -(max_filt_width - 1) // 2)
     delta_data_list = [data]
+    padded_data = np.pad(data, pad_widths, 'edge')
     delta_filt = np.asarray((.2, .1, 0., -.1, -.2))
     cur_filt = np.ones(1)
     for _ in range(num_deltas):
         cur_filt = np.convolve(cur_filt, delta_filt, 'full')
-        delta_data_list.append(
-            np.apply_along_axis(np.convolve, axis, data, cur_filt, 'same'))
+        delta_data_list.append(np.apply_along_axis(
+            np.convolve, axis, padded_data, cur_filt, 'same')[slices])
     if concatenate:
         return np.concatenate(delta_data_list, target_axis)
     else:
@@ -144,7 +149,5 @@ class CMVNCalculator(object):
 
     def save(self, wxfilename):
         '''Save statistics to extended file name'''
-        entries = list(self._stats.items())
-        entries.sort()
         with kaldi_open(wxfilename, mode='w') as stats_file:
-            stats_file.write(self.stats)
+            stats_file.write(self.stats, 'bm')

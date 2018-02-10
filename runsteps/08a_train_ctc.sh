@@ -7,8 +7,8 @@ source utils/parse_options.sh
 
 source runsteps/xx_utility_funcs.sh
 
-if [ $# -ne 3 ] && [ $# -ne 4 ]; then
-  eecho "Usage: $0 [options] <feat-name> <feat-root> <csv-path> [<model_formatter>]"
+if [ $# -le 2 ] || [ $# -ge 6 ]; then
+  eecho "Usage: $0 [options] <feat-name> <feat-root> <csv-path> [<model-formatter> [<train-formatter]]"
   eecho "e.g. $0 kaldi_123 data/123 exp/csv/kaldi_123.csv"
   exit 1;
 fi
@@ -17,10 +17,16 @@ feat_name="$1"
 feat_root="$2"
 csv_path="$3"
 model_formatter="$4"
+train_formatter="$5"
 
 if [ -z "${model_formatter}" ]; then
   model_formatter="exp/models/${feat_name}-{epoch:04d}.h5"
   iecho "model-formatter not set, using ${model_formatter}"
+fi
+
+if [ -z "${train_formatter}" ]; then
+  train_formatter="exp/rng/${feat_name}-{epoch:04d}.pkl"
+  iecho "train-formatter not set, using ${train_formatter}"
 fi
 
 iecho "Determining number of features and labels for training"
@@ -37,6 +43,9 @@ mkdir -p $(dirname "${csv_path}")
 mkdir -p "${logdir}"
 mkdir -p $(dirname "${model_formatter}") || wecho \
 "Unable to create base directory of model-formatter. You should do this
+manually"
+mkdir -p $(dirname "${train_formatter}") || wecho \
+"Unable to create base directory of train-formatter. You should do this
 manually"
 
 if $PREPROCESS_ON_BATCH ; then
@@ -57,6 +66,7 @@ $cmd "$logdir/train_${feat_name}_$(date +%s).log" \
     --num-labels=${num_labels} \
     --verbose=${verbose} \
     --training-stage=${training_stage} \
+    "--train-formatter=${train_formatter}" \
     "${extra_args[@]}--model-formatter=${model_formatter}" \
     "--csv-path=${csv_path}" \
     "--config=${model_conf}" \

@@ -59,7 +59,7 @@ reference dims $(head -n 1 """${tmpdir}/exp_dims""")."
   if $norm_means || $norm_vars; then
     if [ $x = "train" ]; then
       if $PREPROCESS_ON_BATCH ; then
-        compute-cmvn-stats \
+        alt-compute-cmvn-stats \
           --verbose=${verbose} \
           "${out_rspecifier}" "${data}/train/cmvn_${name}.kdt"
       else

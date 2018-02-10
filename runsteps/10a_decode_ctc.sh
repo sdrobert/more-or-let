@@ -38,7 +38,6 @@ if $PREPROCESS_ON_BATCH ; then
   extra_args=(
     "--delta-order=2"
     "--cmvn-rxfilename=${feat_root}/train/cmvn_${feat_name}.kdt"
-    "--batch-size=1"
     ""
   )
   # the last "" allows us to shove this into another arg's quotations without
@@ -61,7 +60,7 @@ mkdir -p "${score_dir}"
 
 iecho "Decoding ${feat_name}"
 
-for x in test; do
+for x in dev test; do
   iecho "$x partition"
   mkdir -p "${score_dir}/${x}"
   mkdir -p "${decode_dir}/${x}"

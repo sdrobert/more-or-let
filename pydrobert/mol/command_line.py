@@ -133,6 +133,7 @@ def train_cnn_ctc(args=None):
         batch_size=train_config.batch_size,
         delta_order=model_config.delta_order,
         cmvn_rxfilename=model_config.cmvn_rxfilename,
+        rng=train_config.train_seed,
     )
     if options.val_data_rspecifier or options.val_labels_rspecifier:
         if None in (

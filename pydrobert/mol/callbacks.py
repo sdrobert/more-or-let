@@ -1,4 +1,3 @@
-
 '''Callbacks and callback-related periphery'''
 
 from __future__ import absolute_import
@@ -6,9 +5,11 @@ from __future__ import division
 from __future__ import print_function
 
 from csv import DictReader
+from six.moves.cPickle import dump
 
 import numpy as np
 
+from keras.callbacks import Callback
 from keras.callbacks import EarlyStopping
 from keras.callbacks import History
 
@@ -20,6 +21,7 @@ __copyright__ = "Copyright 2017 Sean Robertson"
 __all__ = [
     'ExtendedHistory',
     'ExtendedEarlyStopping',
+    'RandomStateCheckpoint'
 ]
 
 
@@ -288,7 +290,7 @@ class ExtendedEarlyStopping(EarlyStopping):
         logs = logs if logs is not None else dict()
         super(ExtendedEarlyStopping, self).on_train_begin(logs)
         verb_message = ''
-        if any(not logs.get('prev_' + hp) for hp in self.hyperparams):
+        if any(logs.get('prev_' + hp) is None for hp in self.hyperparams):
             verb_message += 'No record of prior early stopping. '
         elif self.reset_on_new_training_stage and (
                 logs.get('prev_training_stage') is None or
@@ -320,3 +322,51 @@ class ExtendedEarlyStopping(EarlyStopping):
         # this is made negative when we monitor with 'min', but we want
         # it to look like our setting, so keep it max
         logs['min_delta'] = abs(self.min_delta)
+
+
+class RandomStateCheckpoint(Callback):
+    '''Save the state of numpy's randomizer every epoch
+
+    Parameters
+    ----------
+    rng_formatter : str
+        An expression that can be formatted with the logs that will
+        dictate where the state should be saved to
+    rng : numpy.random.RandomState, optional
+        The ``RandomState`` object to save the state from. If not set,
+        numpy's global randomizer will be used (not recommended)
+    verbose : {0, 1}, optional
+        0: quiet. 1: loud
+    log_entry : str, optional
+        If set, a log entry will be added with the formatted path of
+        this epoch's state with this key
+
+    Attributes
+    ----------
+    rng_formatter : str
+    rng : numpy.random.RandomState or None
+    verbose : {0, 1}
+    log_entry : str or None
+    '''
+
+    def __init__(self, rng_formatter, rng=None, verbose=0, log_entry=None):
+        super(RandomStateCheckpoint, self).__init__()
+        self.rng_formatter = rng_formatter
+        self.rng = rng
+        self.verbose = verbose
+        self.log_entry = log_entry
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs if logs is not None else dict()
+        rng_path = self.rng_formatter.format(epoch=epoch + 1, **logs)
+        if self.log_entry:
+            logs[self.log_entry] = rng_path
+        if self.rng is None:
+            state = np.random.get_state()
+        else:
+            state = self.rng.get_state()
+        with open(rng_path, 'wb') as rng_file:
+            dump(state, rng_file)
+        if self.verbose > 0:
+            print('\nEpoch {:05d}: saving rng state to {}'.format(
+                epoch + 1, rng_path))

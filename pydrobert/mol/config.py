@@ -156,6 +156,12 @@ class TrainConfig(Config):
         doesn't kick in. Defaults to 1000
     cache : bool
         Whether to cache all training data in memory. Defaults to False
+    train_seed : int
+        Seed used to initialize training data shuffler at first epoch.
+        Defaults to 5678
+    train_formatter : str
+        String used to format (numpy) rng save files for training.
+        Defaults to 'train.{epoch:03d}.pkl'
     '''
 
     def __init__(self, **kwargs):
@@ -172,6 +178,8 @@ class TrainConfig(Config):
         self.min_delta = .1
         self.max_epochs = 1000
         self.cache = False
+        self.train_seed = 5678
+        self.train_formatter = 'train.{epoch:03d}.pkl'
         super(TrainConfig, self).__init__(**kwargs)
 
 

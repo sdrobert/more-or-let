@@ -27,7 +27,9 @@ from keras.optimizers import SGD
 from keras.regularizers import l2
 from pydrobert.mol.callbacks import ExtendedEarlyStopping
 from pydrobert.mol.callbacks import ExtendedHistory
+from pydrobert.mol.callbacks import RandomStateCheckpoint
 from pydrobert.mol.config import TrainConfig
+from six.moves.cPickle import load
 
 __author__ = "Sean Robertson"
 __email__ = "sdrobert@cs.toronto.edu"
@@ -110,6 +112,7 @@ class ConvCTC(object):
         del additional_metadata['csv_delimiter']
         del additional_metadata['patience']
         del additional_metadata['model_formatter']
+        del additional_metadata['train_formatter']
         history = ExtendedHistory(
             csv_path=train_config.csv_path,
             strict=True,
@@ -121,6 +124,10 @@ class ConvCTC(object):
         initial_epoch = max(-1, history.get_last_epoch()) + 1
         model_path = history.get_last('model_path')
         prev_training_stage = history.get_last('training_stage')
+        if history.get_last('train_rng_path'):
+            with open(history.get_last('train_rng_path'), 'rb') as rng_file:
+                rng_state = load(rng_file)
+            train_data.rng.set_state(rng_state)
         self._ready_acoustic_model(
             model_path=model_path,
             train_config=train_config,
@@ -150,6 +157,12 @@ class ConvCTC(object):
                 filepath=train_config.model_formatter,
                 save_best_only=False,
                 period=1,
+            ))
+        if train_config.train_formatter:
+            callbacks.append(RandomStateCheckpoint(
+                train_config.train_formatter,
+                rng=train_data.rng,
+                log_entry='train_rng_path',
             ))
         if train_config.csv_path:
             callbacks.append(CSVLogger(
@@ -332,10 +345,9 @@ class ConvCTC(object):
 
     def _construct_acoustic_model(self, train_config=TrainConfig()):
         # construct an acoustic model from scratch
-        self._cur_weight_seed = self.config.weight_seed - 1
+        self._cur_weight_seed = self.config.weight_seed
 
         def _layer_kwargs():
-            self._cur_weight_seed = self._cur_weight_seed + 1
             ret = {
                 'activation': 'linear',
                 'kernel_initializer': RandomUniform(
@@ -344,6 +356,7 @@ class ConvCTC(object):
                     seed=self._cur_weight_seed,
                 ),
             }
+            self._cur_weight_seed = self._cur_weight_seed + 1
             if train_config.training_stage == 'sgd':
                 ret['kernel_regularizer'] = l2(train_config.sgd_reg)
             return ret
@@ -377,7 +390,9 @@ class ConvCTC(object):
             # http://jmlr.org/proceedings/papers/v28/goodfellow13.pdf
             if dropout:
                 last = Dropout(
-                    train_config.dropout, name=name_prefix + '_d')(last)
+                    train_config.dropout, name=name_prefix + '_d',
+                    seed=self._cur_weight_seed)(last)
+                self._cur_weight_seed += 1
             return last
         # inputs
         feat_input = Input(
@@ -404,7 +419,10 @@ class ConvCTC(object):
                 self.config.pool_time_width,
                 self.config.pool_freq_width),
             name='conv_1_p')(last_layer)
-        last_layer = Dropout(train_config.dropout, name='conv_1_d')(last_layer)
+        last_layer = Dropout(
+            train_config.dropout, name='conv_1_d',
+            seed=self._cur_weight_seed)(last_layer)
+        self._cur_weight_seed += 1
         for layer_no in range(2, 11):
             if layer_no == 5:
                 n_filts *= 2
@@ -432,8 +450,10 @@ class ConvCTC(object):
                 dense_b, name=name_prefix + '_td_b')(last_layer)
             last_layer = Maximum(name=name_prefix + '_m')([td_a, td_b])
             last_layer = Dropout(
-                train_config.dropout, name=name_prefix + '_d'
+                train_config.dropout, name=name_prefix + '_d',
+                seed=self._cur_weight_seed,
             )(last_layer)
+            self._cur_weight_seed += 1
         activation_dense = Dense(
             self.config.num_labels, name='dense_activation',
             **_layer_kwargs()
@@ -558,6 +578,10 @@ def _y_pred_loss(y_true, y_pred):
 
 
 if K.backend() == 'tensorflow':
+    import tensorflow as tf
+    # this'll help with tensorflow non-determinism if everything runs
+    # swimmingly, but we really can't control it nicely
+    tf.set_random_seed(74023893)
     try:
         import warpctc_tensorflow
         _ctc_loss = _tf_warp_ctc_loss
