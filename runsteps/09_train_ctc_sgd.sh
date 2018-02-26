@@ -21,20 +21,20 @@ fi
 
 iecho "SGD training"
 
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage sgd \
-#   kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv
+source runsteps/08a_train_ctc.sh \
+  --training-stage sgd \
+  kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv
 source runsteps/08a_train_ctc.sh \
   --training-stage sgd \
   fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage sgd \
-#   sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage sgd \
-#   gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage sgd \
-#   sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv
+source runsteps/08a_train_ctc.sh \
+  --training-stage sgd \
+  sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv
+source runsteps/08a_train_ctc.sh \
+  --training-stage sgd \
+  gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv
+source runsteps/08a_train_ctc.sh \
+  --training-stage sgd \
+  sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv
 
 iecho "Done SGD training"

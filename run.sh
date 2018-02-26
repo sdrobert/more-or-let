@@ -25,7 +25,7 @@ export EXTRA_CONFIG_FNAME="extra_config.sh"
 export TF_SOURCE_INSTALL=false # whether to install tensorflow from source
                                # or PyPI
 export INSTALL_WARPCTC=false
-#export TMPDIR=~/scratch          # nix standard is /tmp
+export TMPDIR=~/scratch          # nix standard is /tmp
 export PREPROCESS_ON_BATCH=true
 
 source runsteps/00_preamble.sh

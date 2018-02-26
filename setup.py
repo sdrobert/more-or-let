@@ -17,7 +17,6 @@ setup(
     author=__author__,
     author_email=__email__,
     license=__license__,
-    namespace_packages=['pydrobert'],
     packages=['pydrobert', 'pydrobert.mol'],
     classifiers=[
         'Development Status :: 3 - Alpha',

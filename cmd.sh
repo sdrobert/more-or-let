@@ -11,9 +11,9 @@
 # or search for the string 'default_config' in utils/queue.pl or utils/slurm.pl.
 
 # more-or-let custom: feat command
-export feat_cmd="run.pl"
-export train_cmd="run.pl"
-export decode_cmd="run.pl"
+export feat_cmd="slurm.pl --time 00:30:00"
+export train_cmd="slurm.pl --gpu 1 --time 20:00:00 --mem 120000M"
+export decode_cmd="slurm.pl --gpu 1 --time 02:00:00 --mem 120000M"
 export mkgraph_cmd="run.pl"
 # the use of cuda_cmd is deprecated but it's still sometimes used in nnet1
 # example scripts.

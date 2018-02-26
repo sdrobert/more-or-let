@@ -21,25 +21,25 @@ fi
 
 iecho "Adam training"
 
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage adam \
-#   kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv \
-#   exp/models/kaldi_${num_feats}-adam.h5
+source runsteps/08a_train_ctc.sh \
+  --training-stage adam \
+  kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv \
+  exp/models/kaldi_${num_feats}-adam.h5
 source runsteps/08a_train_ctc.sh \
   --training-stage adam \
   fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv \
   exp/models/fbank_${num_feats}-adam.h5
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage adam \
-#   sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv \
-#   exp/models/sifbank_${num_feats}-adam.h5
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage adam \
-#   gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv \
-#   exp/models/gbank_${num_feats}-adam.h5
-# source runsteps/08a_train_ctc.sh \
-#   --training-stage adam \
-#   sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv \
-#   exp/models/sigbank_${num_feats}-adam.h5
+source runsteps/08a_train_ctc.sh \
+  --training-stage adam \
+  sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv \
+  exp/models/sifbank_${num_feats}-adam.h5
+source runsteps/08a_train_ctc.sh \
+  --training-stage adam \
+  gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv \
+  exp/models/gbank_${num_feats}-adam.h5
+source runsteps/08a_train_ctc.sh \
+  --training-stage adam \
+  sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv \
+  exp/models/sigbank_${num_feats}-adam.h5
 
 iecho "Done Adam training"
