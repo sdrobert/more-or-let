@@ -39,6 +39,7 @@ setup(
             'alt_compute_cmvn_stats',
             'alt-apply-cmvn = pydrobert.mol.command_line:alt_apply_cmvn',
             'alt-add-deltas = pydrobert.mol.command_line:alt_add_deltas',
+            'compute-loss = pydrobert.mol.command_line:compute_loss',
         ]
     }
 )

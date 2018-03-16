@@ -74,11 +74,11 @@ class ConvCTC(object):
         ----------
         train_config : pydrobert.mol.config.TrainConfig
         train_data : pydrobert.mol.corpus.TrainData
-            Should yield sample tuples of (feats, labels, feat_sizes,
-            label_sizes)
-        val_data : pydrobert.mol.corpus.EvalData, optional
-            Validation data. Should yield sample tuples of (feats,
-            labels, feat_sizes, label_sizes)
+            Should yield sample tuples of [feats, labels, feat_sizes,
+            label_sizes], [dummy_data]
+        val_data : pydrobert.mol.corpus.ValidationData, optional
+            Validation data. Should yield sample tuples of [feats,
+            labels, feat_sizes, label_sizes], [dummy_data]
         '''
         if train_data.batch_size != train_config.batch_size:
             raise ValueError(
@@ -306,6 +306,25 @@ class ConvCTC(object):
                         yield ret_labels[0]
                     else:
                         yield ret_labels
+
+
+    def evaluate_generator(self, decode_config, eval_data):
+        '''Return loss over samples
+
+        Parameters
+        ----------
+        decode_config : pydrobert.mol.config.DecodeConfig
+        eval_data : pydrobert.mol.corpus.ValidationData
+            A generator that yields [feats, labels, feat_sizes,
+            label_sizes], [dummy_data]
+
+        Returns
+        -------
+        float
+            The loss
+        '''
+        self._ready_acoustic_model(model_path=decode_config.model_path)
+        return self.model.evaluate_generator(iter(eval_data), steps=len(eval_data))
 
     def _ready_acoustic_model(
             self, model_path=None, train_config=None,

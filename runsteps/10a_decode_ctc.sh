@@ -48,10 +48,9 @@ fi
 
 score_dir="$4"
 
-tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir"' EXIT INT TERM
-
 if [ -z "${decode_dir}" ]; then
+  tmpdir=$(mktemp -d)
+  trap "rm -rf '$tmpdir'" EXIT
   decode_dir="${tmpdir}"
 fi
 

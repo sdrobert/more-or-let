@@ -25,7 +25,7 @@ export EXTRA_CONFIG_FNAME="extra_config.sh"
 export TF_SOURCE_INSTALL=false # whether to install tensorflow from source
                                # or PyPI
 export INSTALL_WARPCTC=false
-export TMPDIR=~/scratch          # nix standard is /tmp
+#export TMPDIR=~/scratch          # nix standard is /tmp
 export PREPROCESS_ON_BATCH=true
 
 source runsteps/00_preamble.sh
@@ -43,9 +43,6 @@ runsteps/01_basics.sh
 ;;
 
 2)
-# For some reason, the switch from PoolAllocator to BFCAllocator caused OOM
-# errors for me (12G GPU RAM). If this is not a problem for you, go ahead and
-# remove this version flag
 runsteps/02_tensorflow_install.sh
 ;;
 
@@ -83,6 +80,10 @@ runsteps/09_train_ctc_sgd.sh
 
 10)
 runsteps/10_decode_ctc.sh
+;;
+
+11)
+runsteps/11_losses.sh
 ;;
 
 [0-9]*)

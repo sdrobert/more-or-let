@@ -342,6 +342,75 @@ def find_best_model_from_log(args=None):
         return 0
 
 
+def _compute_loss_parse_args(args, logger):
+    parser = KaldiParser(
+        description=compute_loss.__doc__,
+        logger=logger,
+    )
+    parser.register('type', bool, kaldi_bool_arg_type)
+    parser.add_argument(
+        'data_rspecifier', type='kaldi_rspecifier',
+        help='rspecifier to read in audio features used for training')
+    parser.add_argument(
+        'labels_rspecifier', type='kaldi_rspecifier',
+        help='rspecifier to read in labels used for training')
+    parser.add_argument(
+        'label_to_id_map_path',
+        help='Where the file that converts labels to ids is stored.')
+    ModelConfig().add_arguments_to_parser(parser)
+    TrainConfig().add_arguments_to_parser(parser)
+    DecodeConfig().add_arguments_to_parser(parser)
+    options = parser.parse_args(args)
+    return options
+
+
+@kaldi_vlog_level_cmd_decorator
+@kaldi_logger_decorator
+def compute_loss(args=None):
+    '''Compute the average loss over the data'''
+    logger = logging.getLogger(sys.argv[0])
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    register_logger_for_kaldi(sys.argv[0])
+    options = _compute_loss_parse_args(args, logger)
+    logger.log(9, 'Parsed options')
+    label2id_map = dict()
+    with open(options.label_to_id_map_path) as file_obj:
+        for line in file_obj:
+            label, idee = line.strip().split()
+            idee = int(idee)
+            if idee < 0:
+                logger.error('All label ids must be nonnegative')
+                return 1
+            label2id_map[label] = idee
+    if (len(label2id_map) + 1) != options.num_labels:
+        logger.error(
+            'Expected {} labels in label_to_id_map, got {}'.format(
+                options.num_labels - 1, len(label2id_map)))
+        return 1
+    for idee in range(options.num_labels - 1):
+        if idee not in label2id_map.values():
+            raise ValueError('label to id map missing id: {}'.format(idee))
+    model_config = ModelConfig(**vars(options))
+    decode_config = DecodeConfig(**vars(options))
+    eval_data = ValidationData(
+        options.data_rspecifier,
+        options.labels_rspecifier,
+        label2id_map,
+        batch_size=decode_config.batch_size,
+        delta_order=model_config.delta_order,
+        cmvn_rxfilename=model_config.cmvn_rxfilename,
+    )
+    with redirect_stdout_to_stderr():
+        logger.log(9, 'Creating model')
+        from pydrobert.mol.model import ConvCTC
+        model = ConvCTC(model_config)
+        logger.log(9, 'Calculating loss')
+        loss = model.evaluate_generator(decode_config, eval_data)
+        logger.log(9, 'Calculated loss')
+    print('Model loss:', loss)
+
+
 def _alt_compute_cmvn_stats_parse_args(args, logger):
     parser = KaldiParser(
         description=alt_compute_cmvn_stats.__doc__,
