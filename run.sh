@@ -13,7 +13,7 @@ export WARN_C="\e[93m"
 export ERR_C="\e[91m"
 export DEFT_C="\e[39m"
 export USE_CONDA=false
-export USE_VIRTUALENV=true
+export USE_VIRTUALENV=false
 export PYTHON_VER=3.6
 export CONDA_ENV_NAME="${PROJECT_NAME}"
 export VIRTUALENV_DIR="exp/venv" # the directory called with virtualenv
@@ -26,7 +26,9 @@ export TF_SOURCE_INSTALL=false # whether to install tensorflow from source
                                # or PyPI
 export INSTALL_WARPCTC=false
 #export TMPDIR=~/scratch          # nix standard is /tmp
-export PREPROCESS_ON_BATCH=true
+export PREPROCESS_ON_BATCH=false
+export FEAT_NAMES="kaldi fbank gbank tonebank sifbank sigbank sitonebank"
+export NUM_TRIALS=10  # the number of experiments to run
 
 source runsteps/00_preamble.sh
 
@@ -82,9 +84,9 @@ runsteps/09_train_ctc_sgd.sh
 runsteps/10_decode_ctc.sh
 ;;
 
-11)
-runsteps/11_losses.sh
-;;
+# 11)
+# runsteps/11_losses.sh
+# ;;
 
 [0-9]*)
 iecho "Done!"

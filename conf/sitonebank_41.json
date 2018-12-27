@@ -1,7 +1,8 @@
 {
   "name": "si",
   "bank": {
-    "name": "fbank",
+    "name": "tonebank",
+    "scaling_function": "mel",
     "num_filts": 40,
     "low_hz": 20,
     "high_hz": 8000,

@@ -1,25 +1,42 @@
 #! /usr/bin/env bash
 # Copyright 2017 Sean Robertson
+source runsteps/xx_utility_funcs.sh
 
-if [ $# != 4 ]; then
-  eecho "Usage: $0 [options] <feat-name> <feat-root> <model-path|csv_path> <loss-dir>"
-  eecho "e.g. $0 kaldi_123 data/123 exp/csv/kaldi_123.csv exp/losses/123"
+num_trials=1
+
+source utils/parse_options.sh
+
+if [ $# -lt 3 ] || [ $# -gt 4 ]; then
+  eecho "Usage: $0 [options] <feat-name> <feat-root> <exp-dir> [<model-path>]"
+  eecho "e.g. $0 kaldi_123 data/123 exp"
   exit 1;
 fi
 
 feat_name="$1"
 feat_root="$2"
+exp_dir="$3"
+model_path="$4"
 
-if [ "${3##*.}" = "csv" ]; then
-  model_path=$(
-    find-best-model-from-log \
-      "--verbose=${verbose}" \
-      "--training-stage=sgd" \
-      "$3"
-  )
-  iecho "Best model is ${model_path}"
+if [ -z "${model_path}" ]; then
+  mkdir -p "${exp_dir}/best_model_paths"
+  run.pl TRIAL=1:${num_trials} "${exp_dir}/log/find_best/TRIAL.log" \
+  find-best-model-from-log \
+    "--verbose=${verbose}" \
+    "--training-stage=sgd" \
+    "${exp_dir}/csv/${feat_name}.TRIAL.csv" \
+    \> "${exp_dir}/best_model_paths/TRIAL.txt"
+  model_path_path="${exp_dir}/best_model_paths/TRIAL.txt"
 else
-  model_path="$3"
+  if [ num_trials != 1 ] && [ -z "$(echo "${model_path}" | grep TRIAL)" ]; then
+    eecho "More than one trial specified, but '${model_path}' does not contain
+the 'TRIAL' keyword."
+    exit 1
+  fi
+  tmpdir="$(mktemp -d)"
+  trap "rm -rf '${tmpdir}'" EXIT
+  run.pl TRIAL=1:${num_trials} "${tmpdir}/TRIAL.log" \
+    echo "${model_path}" \> "${tmpdir}/TRIAL.txt"
+  model_path_path="${TMPDIR}/TRIAL.txt"
 fi
 
 iecho "Determining number of features and labels to calculate loss"
@@ -58,7 +75,7 @@ for x in train dev test; do
       "--verbose=${verbose}" \
       "--num-feats=${num_feats}" \
       "--num-labels=${num_labels}" \
-      "--model-path=${model_path}" \
+      "--model-path=\$\(cat ${model_path_path} \)" \
       "${extra_args[@]}--config=${model_conf}" \> \
         "${loss_dir}/${x}/loss_${feat_name}.txt"
 done

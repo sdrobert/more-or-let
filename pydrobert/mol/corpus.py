@@ -59,7 +59,7 @@ def _loss_data_wrapper(cls):
                     raise TypeError(
                         'Invalid keyword argument "{}"'.format(invalid_kwarg))
             self.delta_order = delta_order
-            if cmvn_rxfilename is not None:
+            if cmvn_rxfilename:
                 self.cmvn = CMVNCalculator(cmvn_rxfilename)
             else:
                 self.cmvn = None
@@ -150,7 +150,7 @@ class DecodeData(SequentialData):
                 raise TypeError(
                     'Invalid keyword argument "{}"'.format(invalid_kwarg))
         self.delta_order = delta_order
-        if cmvn_rxfilename is not None:
+        if cmvn_rxfilename:
             self.cmvn = CMVNCalculator(cmvn_rxfilename)
         else:
             self.cmvn = None

@@ -110,7 +110,7 @@ class ExtendedHistory(History):
 
     def load_csv_history(self):
         '''Load up the csv history'''
-        if self.csv_path is not None:
+        if self.csv_path:
             self.csv_epoch = -float('inf')
             self.csv_history = dict()
             one_row = False

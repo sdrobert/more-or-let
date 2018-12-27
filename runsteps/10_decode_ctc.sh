@@ -19,13 +19,7 @@ else
   num_feats=123
 fi
 
-source runsteps/10a_decode_ctc.sh \
-  kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv exp/scores/${num_feats}
-source runsteps/10a_decode_ctc.sh \
-  fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv exp/scores/${num_feats}
-source runsteps/10a_decode_ctc.sh \
-  sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv exp/scores/${num_feats}
-source runsteps/10a_decode_ctc.sh \
-  gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv exp/scores/${num_feats}
-source runsteps/10a_decode_ctc.sh \
-  sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv exp/scores/${num_feats}
+for feat in ${FEAT_NAMES} ; do
+  source runsteps/10a_decode_ctc.sh \
+    ${feat}_${num_feats} data/${num_feats} exp
+done

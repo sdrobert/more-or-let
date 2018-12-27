@@ -3,25 +3,41 @@
 
 source runsteps/xx_utility_funcs.sh
 
-if [ $# != 4 ]; then
-  eecho "Usage: $0 [options] <feat-name> <feat-root> <model-path|csv_path> <score-dir>"
-  eecho "e.g. $0 kaldi_123 data/123 exp/csv/kaldi_123.csv exp/scores/123"
+beam_width=100
+
+source utils/parse_options.sh
+
+if [ $# -lt 3 ] || [ $# -gt 4 ]; then
+  eecho "Usage: $0 [options] <feat-name> <feat-root> <exp-dir> [<model-path>]"
+  eecho "e.g. $0 kaldi_123 data/123 exp"
   exit 1;
 fi
 
 feat_name="$1"
 feat_root="$2"
+exp_dir="$3"
+model_path="$4"
 
-if [ "${3##*.}" = "csv" ]; then
-  model_path=$(
-    find-best-model-from-log \
-      "--verbose=${verbose}" \
-      "--training-stage=sgd" \
-      "$3"
-  )
-  iecho "Best model is ${model_path}"
+if [ -z "${model_path}" ]; then
+  mkdir -p "${exp_dir}/best_model_paths"
+  run.pl TRIAL=1:${NUM_TRIALS} "${exp_dir}/log/find_best/TRIAL.log" \
+  find-best-model-from-log \
+    "--verbose=${verbose}" \
+    "--training-stage=sgd" \
+    "${exp_dir}/csv/${feat_name}.TRIAL.csv" \
+    \> "${exp_dir}/best_model_paths/${feat_name}.TRIAL.txt"
+  model_path_path="${exp_dir}/best_model_paths/${feat_name}.TRIAL.txt"
 else
-  model_path="$3"
+  if [ ${NUM_TRIALS} != 1 ] && [ -z "$(echo "${model_path}" | grep TRIAL)" ]; then
+    eecho "More than one trial specified, but '${model_path}' does not contain
+the 'TRIAL' keyword."
+    exit 1
+  fi
+  tmpdir="$(mktemp -d)"
+  trap "rm -rf '${tmpdir}'" EXIT
+  run.pl TRIAL=1:${NUM_TRIALS} "${tmpdir}/TRIAL.log" \
+    echo "${model_path}" \> "${tmpdir}/TRIAL.txt"
+  model_path_path="${TMPDIR}/TRIAL.txt"
 fi
 
 iecho "Determining number of features and labels for decoding"
@@ -46,74 +62,41 @@ if $PREPROCESS_ON_BATCH ; then
   # at test time, so we reduce the batch size to 1
 fi
 
-score_dir="$4"
-
-if [ -z "${decode_dir}" ]; then
-  tmpdir=$(mktemp -d)
-  trap "rm -rf '$tmpdir'" EXIT
-  decode_dir="${tmpdir}"
-fi
-
-mkdir -p "${decode_dir}"
-mkdir -p "${score_dir}"
-
 iecho "Decoding ${feat_name}"
 
 for x in dev test; do
-  iecho "$x partition"
-  mkdir -p "${score_dir}/${x}"
-  mkdir -p "${decode_dir}/${x}"
-  local/timit_norm_trans.pl \
-    -i "${feat_root}/${x}/text" \
-    -m "conf/phones.60-48-39.map" \
-    -from 60 -to 39 \
-    > "${decode_dir}/${x}/39_ref.txt"
-  if [ $x = dev ]; then
-    beam_widths=($(seq 1 20))
-    beam_widths=(${beam_widths[*]} 100 1000)
-    iecho "Trying beams ${beam_widths[*]}"
-  else
-    best_per=100
-    best_beam=1
-    for per_file in "${score_dir}/dev/per_${feat_name}."*.txt; do
-      per=$(grep "Processed" $per_file | cut -d' ' -f 5 | cut -d'%' -f 1)
-      beam=$(awk -F. '{print $(NF-1)}' <<< "${per_file}")
-      iecho "PER for beam $beam was ${per}%"
-      if [ $(bc -l <<< "$best_per > $per") = 1 ]; then
-        best_beam=$beam
-        best_per=$per
-      fi
-    done
-    iecho "Using best beam $best_beam"
-    beam_widths=(${best_beam})
-  fi
-  for beam_width in ${beam_widths[*]}; do
-    iecho "Decoding $x partition's ${feat_name} with beam width ${beam_width}"
-    $cmd $logdir/decode_${feat_name}.${beam_width}.log \
-      decode-cnn-ctc \
-        "scp,s:${feat_root}/$x/feats_${feat_name}.scp" \
-        "ark,t,p:${decode_dir}/$x/60_hyp_${feat_name}.${beam_width}.txt" \
-        "${label_to_id_map_path}" \
-        "--verbose=${verbose}" \
-        "--num-feats=${num_feats}" \
-        "--num-labels=${num_labels}" \
-        "--beam-width=${beam_width}" \
-        "--model-path=${model_path}" \
-        "${extra_args[@]}--config=${model_conf}"
-    iecho "Decoded ${feat_name} in $x"
-    iecho "Normalizing and computing PER for ${feat_name} in $x"
+  for t in $(seq 1 ${NUM_TRIALS}) ; do
+    mkdir -p "${exp_dir}/${feat_name}.$t/decode_$x/scoring"
+    cp "${feat_root}/$x/text" "${exp_dir}/${feat_name}.$t/decode_$x/scoring/ref_60phn.txt"
     local/timit_norm_trans.pl \
-      -i "${decode_dir}/$x/60_hyp_${feat_name}.${beam_width}.txt" \
-      -m "conf/phones.60-48-39.map" \
-      -from 60 -to 39 \
-      > "${decode_dir}/${x}/39_hyp_${feat_name}.${beam_width}.txt"
-    iecho "Scoring ${x}"
-    compute-error-rate --print-tables=true --strict=true \
-      "ark:${decode_dir}/${x}/39_ref.txt" \
-      "ark,t,p:${decode_dir}/${x}/39_hyp_${feat_name}.${beam_width}.txt" \
-      "${score_dir}/${x}/per_${feat_name}.${beam_width}.txt"
-    iecho "Normalized and computed PER for ${feat_name} in $x"
+      -i "${exp_dir}/${feat_name}.$t/decode_$x/scoring/ref_60phn.txt" \
+      -m conf/phones.60-48-39.map -from 60 \
+      -to 39 > "${exp_dir}/${feat_name}.$t/decode_$x/scoring/ref_39phn.txt"
   done
+  iecho "Decoding $x partition's ${feat_name} with beam width ${beam_width}"
+  $cmd TRIAL=1:${NUM_TRIALS} "${exp_dir}/log/decode_$x_${feat_name}_${beam_width}.TRIAL.log" \
+    decode-cnn-ctc \
+      "scp,s:${feat_root}/$x/feats_${feat_name}.scp" \
+      "ark,t,p:${exp_dir}/${feat_name}.TRIAL/decode_$x/scoring/${beam_width}_60phn.txt" \
+      "${label_to_id_map_path}" \
+      "--verbose=${verbose}" \
+      "--num-feats=${num_feats}" \
+      "--num-labels=${num_labels}" \
+      "--beam-width=${beam_width}" \
+      "--model-path=\$(cat ${model_path_path})" \
+      "${extra_args[@]}--config=${model_conf}" \|\| exit 1
+  iecho "Decoded ${feat_name} in $x"
+  for t in $(seq 1 ${NUM_TRIALS}) ; do
+    local/timit_norm_trans.pl \
+      -i "${exp_dir}/${feat_name}.$t/decode_$x/scoring/${beam_width}_60phn.txt" \
+      -m conf/phones.60-48-39.map -from 60 \
+      -to 39 > "${exp_dir}/${feat_name}.$t/decode_$x/scoring/${beam_width}_39phn.txt"
+  done
+  run.pl TRIAL=1:${NUM_TRIALS} "${exp_dir}/${feat_name}.TRIAL/decode_$x/scoring/log/score_${beam_width}.log" \
+    cat "${exp_dir}/${feat_name}.TRIAL/decode_$x/scoring/${beam_width}_39phn.txt" \| \
+    compute-wer --text --mode=present \
+    "ark:${exp_dir}/${feat_name}.TRIAL/decode_$x/scoring/ref_39phn.txt" \
+    "ark,p:-" "&>" "${exp_dir}/${feat_name}.TRIAL/decode_$x/wer_${beam_width}"
 done
 
 

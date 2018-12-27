@@ -25,6 +25,7 @@ for x in dev test train; do
   iecho "Creating for $x partition"
   mkdir -p "${tmpdir}/$x"
   stepsext/make_pybank.sh \
+    --compress ${compress} \
     --pybank-json "${pybank_json}" \
     --nj $nj \
     --cmd "$cmd" \

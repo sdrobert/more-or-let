@@ -10,7 +10,7 @@ pad_mode=edge
 norm_means=true
 norm_vars=true
 verbose=0
-compress=true
+compress=false
 nj=10
 cmd=$feat_cmd
 
@@ -25,56 +25,28 @@ iecho "Feature creation"
 mkdir -p data/41
 rsync -r data/full/{dev,train,test} data/41
 
-source runsteps/07a_kaldi_41_creation.sh
-
-source runsteps/07c_pybank_creation.sh \
-  --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
-  --ref-rspecifier-dev scp:data/41/dev/feats_kaldi_41.scp \
-  --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
-  fbank_41 data/41 conf/fbank_41.json
-
-source runsteps/07c_pybank_creation.sh \
-  --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
-  --ref-rspecifier-dev scp:data/41/dev/feats_kaldi_41.scp \
-  --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
-  sifbank_41 data/41 conf/sifbank_41.json
-
-source runsteps/07c_pybank_creation.sh \
-  --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
-  --ref-rspecifier-dev scp:data/41/dev/feats_kaldi_41.scp \
-  --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
-  gbank_41 data/41 conf/gbank_41.json
-
-source runsteps/07c_pybank_creation.sh \
-  --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
-  --ref-rspecifier-dev scp:data/41/dev/feats_kaldi_41.scp \
-  --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
-  sigbank_41 data/41 conf/sigbank_41.json
+for feat in ${FEAT_NAMES}; do
+  if [ "$feat" = kaldi ]; then
+    source runsteps/07a_kaldi_41_creation.sh
+  else
+    source runsteps/07c_pybank_creation.sh \
+      --ref-rspecifier-train scp:data/41/train/feats_kaldi_41.scp \
+      --ref-rspecifier-dev scp:data/41/dev/feats_kaldi_41.scp \
+      --ref-rspecifier-test scp:data/41/test/feats_kaldi_41.scp \
+      ${feat}_41 data/41 conf/${feat}_41.json
+  fi
+done
 
 if ! $PREPROCESS_ON_BATCH ; then
   # 41 * 3 delta creation
   mkdir -p data/123
   rsync -r data/full/{dev,train,test} data/123
 
-  source runsteps/07d_delta_creation.sh \
-    --norm-means false --norm-vars false \
-    data/41 kaldi_41 data/123 kaldi_123
-
-  source runsteps/07d_delta_creation.sh \
-    --norm-means false --norm-vars false \
-    data/41 fbank_41 data/123 fbank_123
-
-  source runsteps/07d_delta_creation.sh \
-    --norm-means false --norm-vars false \
-    data/41 sifbank_41 data/123 sifbank_123
-
-  source runsteps/07d_delta_creation.sh \
-    --norm-means false --norm-vars false \
-    data/41 gbank_41 data/123 gbank_123
-
-  source runsteps/07d_delta_creation.sh \
-    --norm-means false --norm-vars false \
-    data/41 sigbank_41 data/123 sigbank_123
+  for feat in ${FEAT_NAMES}; do
+    source runsteps/07d_delta_creation.sh \
+      --norm-means false --norm-vars false \
+      data/41 ${feat}_41 data/123 ${feat}_123
+  done
 fi
 
 iecho "Done feature creation"

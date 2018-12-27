@@ -35,10 +35,10 @@ setup(
             'train-cnn-ctc = pydrobert.mol.command_line:train_cnn_ctc',
             'find-best-model-from-log = pydrobert.mol.command_line:'
             'find_best_model_from_log',
-            'alt-compute-cmvn-stats = pydrobert.mol.command_line:'
-            'alt_compute_cmvn_stats',
-            'alt-apply-cmvn = pydrobert.mol.command_line:alt_apply_cmvn',
-            'alt-add-deltas = pydrobert.mol.command_line:alt_add_deltas',
+            # 'alt-compute-cmvn-stats = pydrobert.mol.command_line:'
+            # 'alt_compute_cmvn_stats',
+            # 'alt-apply-cmvn = pydrobert.mol.command_line:alt_apply_cmvn',
+            # 'alt-add-deltas = pydrobert.mol.command_line:alt_add_deltas',
             'compute-loss = pydrobert.mol.command_line:compute_loss',
         ]
     }

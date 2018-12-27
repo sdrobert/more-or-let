@@ -108,3 +108,5 @@ exp
 
 # sdrobert: slurm stuff
 core.*
+.ftpconfig
+arxiv*

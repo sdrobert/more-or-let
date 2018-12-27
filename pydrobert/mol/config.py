@@ -104,7 +104,7 @@ class ModelConfig(Config):
         self.num_labels = 61
         self.num_feats = 123
         self.delta_order = 0
-        self.cmvn_rxfilename = None
+        self.cmvn_rxfilename = ""
         self.init_num_filt_channels = 64
         self.num_dense_hidden = 512
         self.filt_time_width = 5
@@ -165,7 +165,7 @@ class TrainConfig(Config):
     '''
 
     def __init__(self, **kwargs):
-        self.csv_path = None
+        self.csv_path = ""
         self.csv_delimiter = ','
         self.training_stage = 'adam'
         self.adam_lr = 1e-4
@@ -198,7 +198,7 @@ class DecodeConfig(Config):
     '''
 
     def __init__(self, **kwargs):
-        self.model_path = None
+        self.model_path = ""
         self.beam_width = 1
         self.batch_size = 20
         super(DecodeConfig, self).__init__(**kwargs)

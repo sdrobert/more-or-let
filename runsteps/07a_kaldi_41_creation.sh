@@ -12,12 +12,14 @@ fbank_config=conf/kaldi_41.conf
 source utils/parse_options.sh
 
 tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir"' EXIT INT TERM
+trap "rm -rf '${tmpdir}'" EXIT
 
 for x in test dev train; do
   iecho "Creating for $x partition"
   mkdir -p "${tmpdir}/$x"
+  mkdir -p exp/log/kaldi_41_creation
   steps/make_fbank.sh \
+    --compress ${compress} \
     --fbank-config "$fbank_config" \
     --nj $nj \
     --cmd "$cmd" \
@@ -30,5 +32,3 @@ source runsteps/07b_feature_creation_common.sh \
   "${tmpdir}" data/41 kaldi_41
 
 iecho "Made features for kaldi_41"
-
-rm -rf "${tmpdir}"

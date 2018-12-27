@@ -548,8 +548,7 @@ def _tf_dft_ctc_decode(y_pred, input_length, beam_width=100):
             beam_width=beam_width,
             top_paths=1,
         )
-    decoded_dense = tf.sparse_to_dense(
-        decoded.indices, decoded.dense_shape, decoded.values, default_value=-1)
+    decoded_dense = tf.sparse.to_dense(decoded, default_value=-1)
     return (decoded_dense,)
 
 

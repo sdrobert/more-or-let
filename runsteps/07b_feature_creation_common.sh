@@ -43,37 +43,29 @@ for x in train dev test; do
       eecho \
 "New features of dim $(head -n 1 """${tmpdir}/act_dims""") do not match
 reference dims $(head -n 1 """${tmpdir}/exp_dims""")."
-      return 1
+      exit 1
     fi
     feat-to-len --verbose=${verbose} \
-      "${!ref_var_name}" "ark:${tmpdir}/ref_len_${name}.ark"
-    normalize-feat-lens \
-      --verbose ${verbose} \
-      --tolerance ${tolerance} \
-      --strict ${strict} \
-      --pad-mode ${pad_mode} \
-      "${out_rspecifier}" "ark:${tmpdir}/ref_len_${name}.ark" \
-      "ark:${tmpdir}/$x/normed_${name}.ark"
-    out_rspecifier="ark:${tmpdir}/$x/normed_${name}.ark"
+      "${!ref_var_name}" "ark,t:${tmpdir}/exp_lens"
+    feat-to-len --verbose=${verbose} \
+      "$out_rspecifier" "ark,t:${tmpdir}/act_lens"
+    if ! cmp "${tmpdir}/exp_lens" "${tmpdir}/act_lens" ; then
+      eecho "Feature lengths don't match!"
+      exit 1
+    fi
   fi
   if $norm_means || $norm_vars; then
     if [ $x = "train" ]; then
-      if $PREPROCESS_ON_BATCH ; then
-        alt-compute-cmvn-stats \
-          --verbose=${verbose} \
-          "${out_rspecifier}" "${data}/train/cmvn_${name}.kdt"
-      else
-        compute-cmvn-stats \
-          --verbose=${verbose} \
-          "${out_rspecifier}" "${tmpdir}/cmvn_${name}.kdt"
-      fi
+      compute-cmvn-stats \
+        --verbose=${verbose} \
+        "${out_rspecifier}" "${data}/train/cmvn_${name}.kdt"
     fi
     if ! $PREPROCESS_ON_BATCH ; then
       apply-cmvn \
         --verbose=${verbose} \
         --norm-means=${norm_means} \
         --norm-vars=${norm_vars} \
-        "${tmpdir}/cmvn_${name}.kdt" "${out_rspecifier}" \
+        "${data}/train/cmvn_${name}.kdt" "${out_rspecifier}" \
         "ark:${tmpdir}/$x/standard_${name}.ark"
       out_rspecifier="ark:${tmpdir}/$x/standard_${name}.ark"
     fi

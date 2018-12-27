@@ -18,13 +18,8 @@ else
   num_feats=123
 fi
 
-source runsteps/11a_losses.sh \
-  kaldi_${num_feats} data/${num_feats} exp/csv/kaldi_${num_feats}.csv exp/losses/${num_feats}
-source runsteps/11a_losses.sh \
-  fbank_${num_feats} data/${num_feats} exp/csv/fbank_${num_feats}.csv exp/losses/${num_feats}
-source runsteps/11a_losses.sh \
-  sifbank_${num_feats} data/${num_feats} exp/csv/sifbank_${num_feats}.csv exp/losses/${num_feats}
-source runsteps/11a_losses.sh \
-  gbank_${num_feats} data/${num_feats} exp/csv/gbank_${num_feats}.csv exp/losses/${num_feats}
-source runsteps/11a_losses.sh \
-  sigbank_${num_feats} data/${num_feats} exp/csv/sigbank_${num_feats}.csv exp/losses/${num_feats}
+for feat in ${FEAT_NAMES} ; do
+  source runsteps/11a_losses.sh \
+    --num-trials ${NUM_TRIALS} \
+    ${feat}_${num_feats} data/${num_feats} exp/csv exp/losses
+done

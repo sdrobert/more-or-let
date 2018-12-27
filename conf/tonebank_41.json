@@ -1,12 +1,14 @@
 {
-  "name": "si",
+  "name": "stft",
   "bank": {
-    "name": "fbank",
+    "name": "tonebank",
+    "scaling_function": "mel",
     "num_filts": 40,
     "low_hz": 20,
     "high_hz": 8000,
     "sampling_rate": 16000
   },
+  "frame_length_ms": 25,
   "frame_shift_ms": 10,
   "frame_style": "centered",
   "include_energy": true,
