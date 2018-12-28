@@ -29,7 +29,7 @@ def main(args=None):
         type=compile,
         default=compile(
             r'^%WER (?P<wer>[\d\.]+) .*/(?P<si>(si)?)(?P<feature>[^_]+)_\d+\.'
-            r'?P<seed>\d+)/decode_(?P<partition>[^/]+)/.*')
+            r'(?P<seed>\d+)/decode_(?P<partition>[^/]+)/.*')
     )
     parser.add_argument(
         '--continuous',
