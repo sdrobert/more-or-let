@@ -28,8 +28,8 @@ def main(args=None):
         'considered random variables',
         type=compile,
         default=compile(
-            r'^%WER (?P<wer>[\d\.]+) .*/(?P<feature>[^_]+)_\d+\.(?P<seed>\d+)/'
-            r'decode_(?P<partition>[^/]+)/.*')
+            r'^%WER (?P<wer>[\d\.]+) .*/(?P<si>(si)?)(?P<feature>[^_]+)_\d+\.'
+            r'?P<seed>\d+)/decode_(?P<partition>[^/]+)/.*')
     )
     parser.add_argument(
         '--continuous',
@@ -38,7 +38,7 @@ def main(args=None):
     )
     parser.add_argument(
         '--regression-formula',
-        default='wer ~ C(feature) + C(partition)'
+        default='wer ~ C(feature) + C(si) + C(partition)'
     )
     parser.add_argument('--verbose', action='store_true', default=False)
     args = parser.parse_args(args)
