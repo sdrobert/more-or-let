@@ -38,7 +38,7 @@ def main(args=None):
     )
     parser.add_argument(
         '--regression-formula',
-        default='wer ~ C(feature) + C(si) + C(partition)'
+        default='wer ~ C(feature) + C(si)'
     )
     parser.add_argument('--verbose', action='store_true', default=False)
     args = parser.parse_args(args)
