@@ -4,7 +4,11 @@ for x in exp/*/decode_*; do
 done
 exit 0
 
-# Experiment results (ArXiv 2018)
+# Experiment results
+# To run some stats on these, try, for example:
+# $ cat RESULTS | sed 's/# //g' | grep -v '123\.8' | python stats.py descriptive
+# $ cat RESULTS | sed 's/# //g' | grep -v '123.8' | grep -v '/si' | grep 'test' | python stats.py friedman
+# $ cat RESULTS | sed 's/# //g' | grep -v '123.8' | grep '/fbank_' | grep 'test' | python stats.py wilcoxon
 # %WER 17.04 [ 2566 / 15057, 369 ins, 613 del, 1584 sub ] exp/fbank_123.10/decode_dev/wer_100
 # %WER 18.56 [ 1339 / 7215, 185 ins, 333 del, 821 sub ] exp/fbank_123.10/decode_test/wer_100
 # %WER 17.24 [ 2596 / 15057, 453 ins, 540 del, 1603 sub ] exp/fbank_123.1/decode_dev/wer_100

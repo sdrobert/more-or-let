@@ -15,7 +15,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from scipy.stats import friedmanchisquare
+from scipy.stats import friedmanchisquare, wilcoxon
 
 
 def main(args=None):
@@ -49,35 +49,48 @@ def main(args=None):
     )
     parser_manova.add_argument(
         '--regression-formula',
-        default='wer ~ C(feature) + C(si)'
+        default='wer ~ C(feature) + C(si) + C(model)'
     )
-    parser_moments = subparsers.add_parser(
-        'moments',
-        help='Get first and second-order Gaussian moments'
+    parser_descriptive = subparsers.add_parser(
+        'descriptive',
+        help='Calculate descriptive statistics, including mean, median, best, '
+        'worst, and standard deviation'
     )
-    parser_moments.add_argument(
+    parser_descriptive.add_argument(
         '--dependent-variable', default='wer',
         help='The dependent (measured) variable'
     )
-    parser_moments.add_argument(
-        '--independent-variables', nargs='+',
+    parser_descriptive.add_argument(
+        '--independent-variables', nargs='*',
         default=['feature', 'si', 'partition'],
         help='A list of independent variables. Moments will be calculated for '
         'each unique value of their cross-product'
     )
-    parser_moments = subparsers.add_parser(
+    parser_friedman = subparsers.add_parser(
         'friedman',
-        help='Get first and second-order Gaussian moments'
+        help='Run Friedman test'
     )
-    parser_moments.add_argument(
+    parser_friedman.add_argument(
         '--dependent-variable', default='wer',
         help='The dependent (measured) variable'
     )
-    parser_moments.add_argument(
+    parser_friedman.add_argument(
         '--independent-variables', nargs='+',
         default=['feature'],
         help='A list of independent variables. Samples for each element of '
         'the cross-product will be pulled to form a sample set'
+    )
+    parser_wilcoxon = subparsers.add_parser(
+        'wilcoxon',
+        help='Run Wilcoxon signed-rank test'
+    )
+    parser_wilcoxon.add_argument(
+        '--dependent-variable', default='wer',
+        help='The dependent (measured) variable'
+    )
+    parser_wilcoxon.add_argument(
+        '--independent-variable', default='si',
+        help='The independent variable. Must have two levels'
     )
     args = parser.parse_args(args)
     if args.in_file:
@@ -117,7 +130,7 @@ def main(args=None):
         model = smf.ols(args.regression_formula, data=df).fit()
         print(sm.stats.anova_lm(model, type=2))
         print(model.summary())
-    elif args.type == 'moments':
+    elif args.type == 'descriptive':
         variables_levels = []
         print(
             ','.join(args.independent_variables) + '\t' +
@@ -134,13 +147,23 @@ def main(args=None):
                     mask = df[variable] == setting
                 else:
                     mask &= df[variable] == setting
-            samples = df[mask][args.dependent_variable]
+            if mask is None:
+                samples = df
+            else:
+                samples = df[mask]
+            samples = samples[args.dependent_variable]
             if len(samples):
-                print('{}\t{:.02f} ({:.02f})'.format(
-                    ','.join(intersection),
-                    samples.mean(),
-                    samples.std()
-                ))
+                print(
+                    '{}\tN={:d} mean={:.02f} median={:.02f} std={:.02f} '
+                    'min={:.02f} max={:.02f}'.format(
+                        ','.join(intersection),
+                        len(samples),
+                        samples.mean(),
+                        samples.median(),
+                        samples.std(),
+                        samples.min(),
+                        samples.max(),
+                    ))
     elif args.type == 'friedman':
         variables_levels = []
         for variable in args.independent_variables:
@@ -156,11 +179,17 @@ def main(args=None):
                     mask &= df[variable] == setting
             samples = df[mask][args.dependent_variable]
             if len(samples):
-                print(intersection, len(samples))
                 sets.append(samples.values.flatten())
-        print('Friedman statistic: {:.03f}, p={:.03f}'.format(
-            *friedmanchisquare(*sets)
-        ))
+        print('Q={:.03f}, p={:.03f}'.format(*friedmanchisquare(*sets)))
+    elif args.type == 'wilcoxon':
+        categories = df[args.independent_variable].cat.categories
+        if len(categories) != 2:
+            raise ValueError('Independent variable must have two levels')
+        sample_1 = df[df[args.independent_variable] == categories[0]]
+        sample_1 = sample_1[args.dependent_variable].values.flatten()
+        sample_2 = df[df[args.independent_variable] == categories[1]]
+        sample_2 = sample_2[args.dependent_variable].values.flatten()
+        print('W={:.03f}, p={:.03f}'.format(*wilcoxon(sample_1, sample_2)))
     else:
         print(
             'Successfully parsed data. To run some stats on them, specify '
