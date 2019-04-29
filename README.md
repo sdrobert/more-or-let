@@ -24,7 +24,14 @@ as the files in _local_ are either inspired, copied, or heavily modified from
 Kaldi [3]. Kaldi is licensed under Apache License 2.0. Its notice can be found
 in _COPYING\_kaldi_.
 
+## How to cite
+You're welcome to use this repository for publications. Please cite the
+original paper (Zhang et al [1]) first and foremost (though note the few
+modifications). If you're feeling generous, please cite our paper as well
+(Robertson et al [4]).
+
 ## References
 [1]: https://arxiv.org/abs/1701.02720
 [2]: https://github.com/sdrobert/pydrobert-speech
 [3]: http://kaldi-asr.org/
+[4]: https://arxiv.org/abs/1901.00072
